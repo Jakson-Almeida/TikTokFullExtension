@@ -190,15 +190,54 @@ document.addEventListener('DOMContentLoaded', function() {
             // First, test communication with content script
             console.log('Testing communication with content script...');
             let testResponse;
+            
+            // Try ping first
             try {
                 testResponse = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
                 console.log('Ping response:', testResponse);
                 console.log('Ping response type:', typeof testResponse);
                 console.log('Ping response keys:', testResponse ? Object.keys(testResponse) : 'null/undefined');
+                console.log('Ping response stringified:', JSON.stringify(testResponse));
+                
+                // Check if response has the expected structure
+                if (testResponse && typeof testResponse === 'object') {
+                    console.log('Response has success property:', 'success' in testResponse);
+                    console.log('Response success value:', testResponse.success);
+                }
             } catch (error) {
                 console.error('Ping failed:', error);
-                alert('Cannot communicate with TikTok page. Please refresh the page and try again.');
-                return;
+                
+                // Try alternative approach - get page info
+                console.log('Trying alternative communication method...');
+                try {
+                    testResponse = await chrome.tabs.sendMessage(tab.id, { action: 'getPageInfo' });
+                    console.log('Alternative response (getPageInfo):', testResponse);
+                    if (testResponse && testResponse.success) {
+                        console.log('Alternative method successful, using this response');
+                        testResponse = { success: true, message: 'Communication established via getPageInfo' };
+                    } else {
+                        throw new Error('Alternative method also failed');
+                    }
+                } catch (altError) {
+                    console.error('Alternative method also failed:', altError);
+                    
+                    // Final attempt - wait a bit and try again
+                    console.log('Waiting 2 seconds and trying one more time...');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    try {
+                        testResponse = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+                        if (testResponse && testResponse.success) {
+                            console.log('Retry successful after delay');
+                        } else {
+                            throw new Error('Retry also failed');
+                        }
+                    } catch (retryError) {
+                        console.error('All communication attempts failed:', retryError);
+                        alert('Cannot communicate with TikTok page. Please:\n1. Refresh the page\n2. Wait a few seconds\n3. Try again');
+                        return;
+                    }
+                }
             }
 
             if (!testResponse || !testResponse.success) {
