@@ -27,6 +27,7 @@
     // Download mode state
     let downloadMode = {
         enabled: false,
+        autoStart: true, // Auto-start when authenticated
         options: {
             watermark: true,
             audio: true,
@@ -56,6 +57,10 @@
         // Set up periodic checks
         console.log('Setting up periodic authentication checks...');
         setInterval(checkAuthentication, 10000); // Check every 10 seconds
+        
+        // Set up periodic download mode checks
+        console.log('Setting up periodic download mode checks...');
+        setInterval(checkDownloadModeStatus, 15000); // Check every 15 seconds
         
         // Listen for page changes
         console.log('Setting up page change observer...');
@@ -129,6 +134,45 @@
                     });
                     break;
                     
+                case 'enableDownloadMode':
+                    console.log('TikTok Full Extension: Processing enableDownloadMode');
+                    console.log('TikTok Full Extension: Enabling download mode with options:', request.options);
+                    downloadMode.enabled = true;
+                    downloadMode.options = request.options || downloadMode.options;
+                    saveSettings();
+                    
+                    // Inject download buttons after a short delay to ensure page is ready
+                    setTimeout(() => {
+                        injectDownloadButtons();
+                        console.log('TikTok Full Extension: Download buttons injected');
+                    }, 1000);
+                    
+                    sendResponse({
+                        success: true,
+                        message: 'Download mode enabled successfully'
+                    });
+                    break;
+                    
+                case 'toggleAutoStart':
+                    console.log('TikTok Full Extension: Processing toggleAutoStart');
+                    downloadMode.autoStart = !downloadMode.autoStart;
+                    saveSettings();
+                    
+                    sendResponse({
+                        success: true,
+                        message: `Auto-start ${downloadMode.autoStart ? 'enabled' : 'disabled'}`,
+                        autoStart: downloadMode.autoStart
+                    });
+                    break;
+                    
+                case 'getDownloadModeStatus':
+                    console.log('TikTok Full Extension: Processing getDownloadModeStatus');
+                    sendResponse({
+                        success: true,
+                        downloadMode: downloadMode
+                    });
+                    break;
+                    
                 case 'ping':
                     // Simple ping to test communication
                     console.log('TikTok Full Extension: Received ping request');
@@ -184,6 +228,19 @@
                 ...newAuthData,
                 lastChecked: Date.now()
             };
+            
+            // Auto-start download mode if user is authenticated and autoStart is enabled
+            if (newAuthData.authenticated && downloadMode.autoStart && !downloadMode.enabled) {
+                console.log('TikTok Full Extension: User authenticated, auto-starting download mode');
+                downloadMode.enabled = true;
+                saveSettings();
+                
+                // Inject download buttons after a short delay
+                setTimeout(() => {
+                    injectDownloadButtons();
+                    console.log('TikTok Full Extension: Download mode auto-started and buttons injected');
+                }, 2000);
+            }
             
             return authData;
         } catch (error) {
@@ -1491,12 +1548,21 @@
         try {
             const result = await chrome.storage.local.get(['downloadMode']);
             if (result.downloadMode) {
-                downloadMode = result.downloadMode;
+                downloadMode = { ...downloadMode, ...result.downloadMode };
                 console.log('TikTok Full Extension: Loaded settings:', downloadMode);
+                
+                // If download mode was previously enabled, restore it
                 if (downloadMode.enabled) {
                     setTimeout(injectDownloadButtons, 2000); // Wait for page to load
                 }
             }
+            
+            // Set default values for new installations
+            if (downloadMode.autoStart === undefined) {
+                downloadMode.autoStart = true;
+            }
+            
+            console.log('TikTok Full Extension: Final download mode settings:', downloadMode);
         } catch (error) {
             console.error('Error loading settings:', error);
         }
@@ -1523,5 +1589,22 @@
 
     // Log successful initialization
     console.log('TikTok Full Extension: Content script fully initialized and ready');
+    
+    function checkDownloadModeStatus() {
+        // If autoStart is enabled and user is authenticated but download mode is disabled,
+        // re-enable it automatically
+        if (downloadMode.autoStart && authData.authenticated && !downloadMode.enabled) {
+            console.log('TikTok Full Extension: Auto-start enabled, user authenticated, but download mode disabled. Re-enabling...');
+            downloadMode.enabled = true;
+            saveSettings();
+            
+            // Inject download buttons
+            setTimeout(() => {
+                injectDownloadButtons();
+                console.log('TikTok Full Extension: Download mode auto-re-enabled and buttons injected');
+            }, 1000);
+        }
+    }
+}
 
 })();

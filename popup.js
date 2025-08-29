@@ -14,10 +14,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Download tool elements
     const enableDownloadBtn = document.getElementById('enableDownloadBtn');
-
     const downloadSettingsBtn = document.getElementById('downloadSettingsBtn');
     const watermarkOption = document.getElementById('watermarkOption');
     const audioOption = document.getElementById('audioOption');
+    const autoStartToggle = document.getElementById('autoStartToggle');
+    const autoStartStatus = document.getElementById('autoStartStatus');
     
     // Settings elements
     const saveSettingsBtn = document.getElementById('saveSettingsBtn');
@@ -40,8 +41,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Download tool events
     enableDownloadBtn.addEventListener('click', enableDownloadMode);
-
     downloadSettingsBtn.addEventListener('click', openDownloadSettings);
+    autoStartToggle.addEventListener('click', toggleAutoStart);
     
     // Settings events
     saveSettingsBtn.addEventListener('click', saveSettings);
@@ -56,6 +57,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Load saved settings
         loadSettings();
+        
+        // Load download mode status after a short delay
+        setTimeout(() => {
+            loadDownloadModeStatus();
+        }, 1000);
     }
 
     function switchTab(tabName) {
@@ -325,6 +331,67 @@ document.addEventListener('DOMContentLoaded', function() {
     function openDownloadSettings() {
         // Switch to settings tab
         switchTab('settings');
+    }
+
+    async function toggleAutoStart() {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            if (!tab.url || !tab.url.includes('tiktok.com')) {
+                console.log('Please navigate to a TikTok page first');
+                return;
+            }
+
+            const response = await chrome.tabs.sendMessage(tab.id, {
+                action: 'toggleAutoStart'
+            });
+
+            if (response && response.success) {
+                console.log(response.message);
+                updateAutoStartStatus(response.autoStart);
+            } else {
+                console.log('Failed to toggle auto-start');
+            }
+        } catch (error) {
+            console.error('Error toggling auto-start:', error);
+        }
+    }
+
+    async function updateAutoStartStatus(autoStart) {
+        autoStartStatus.textContent = autoStart ? 'Enabled' : 'Disabled';
+        autoStartStatus.style.color = autoStart ? '#28a745' : '#dc3545';
+        autoStartToggle.textContent = autoStart ? 'Disable' : 'Enable';
+        autoStartToggle.className = autoStart ? 'btn btn-small btn-danger' : 'btn btn-small btn-success';
+    }
+
+    async function loadDownloadModeStatus() {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            if (!tab.url || !tab.url.includes('tiktok.com')) {
+                return;
+            }
+
+            const response = await chrome.tabs.sendMessage(tab.id, {
+                action: 'getDownloadModeStatus'
+            });
+
+            if (response && response.success) {
+                const { downloadMode } = response;
+                updateAutoStartStatus(downloadMode.autoStart);
+                
+                // Update download button status
+                if (downloadMode.enabled) {
+                    enableDownloadBtn.textContent = 'Download Mode Active';
+                    enableDownloadBtn.classList.add('btn-success');
+                } else {
+                    enableDownloadBtn.textContent = 'Enable Download Mode';
+                    enableDownloadBtn.classList.remove('btn-success');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading download mode status:', error);
+        }
     }
 
     async function saveSettings() {
