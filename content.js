@@ -103,10 +103,15 @@
                     
                 case 'ping':
                     // Simple ping to test communication
-                    sendResponse({
+                    console.log('TikTok Full Extension: Received ping request');
+                    const pingResponse = {
                         success: true,
-                        message: 'Content script is alive and responding'
-                    });
+                        message: 'Content script is alive and responding',
+                        timestamp: Date.now(),
+                        url: window.location.href
+                    };
+                    console.log('TikTok Full Extension: Sending ping response:', pingResponse);
+                    sendResponse(pingResponse);
                     break;
                     
                 default:

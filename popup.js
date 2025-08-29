@@ -193,6 +193,8 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 testResponse = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
                 console.log('Ping response:', testResponse);
+                console.log('Ping response type:', typeof testResponse);
+                console.log('Ping response keys:', testResponse ? Object.keys(testResponse) : 'null/undefined');
             } catch (error) {
                 console.error('Ping failed:', error);
                 alert('Cannot communicate with TikTok page. Please refresh the page and try again.');
@@ -200,6 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (!testResponse || !testResponse.success) {
+                console.error('Invalid ping response:', testResponse);
                 alert('Content script is not responding properly. Please refresh the TikTok page and try again.');
                 return;
             }

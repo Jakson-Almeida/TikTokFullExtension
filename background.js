@@ -94,13 +94,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             lastCheck: Date.now()
         });
         
-        // Optionally inject content script if not already injected
-        chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            files: ['content.js']
-        }).catch(() => {
-            // Content script might already be injected, ignore error
-        });
+        // Note: Content script is automatically injected via manifest.json
+        // No need to manually inject it here
     }
 });
 
