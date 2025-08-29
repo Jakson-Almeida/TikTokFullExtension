@@ -1587,9 +1587,6 @@
         removeDownloadButtons
     };
 
-    // Log successful initialization
-    console.log('TikTok Full Extension: Content script fully initialized and ready');
-    
     function checkDownloadModeStatus() {
         // If autoStart is enabled and user is authenticated but download mode is disabled,
         // re-enable it automatically
@@ -1605,6 +1602,9 @@
             }, 1000);
         }
     }
+
+    // Log successful initialization
+    console.log('TikTok Full Extension: Content script fully initialized and ready');
 }
 
 })();
