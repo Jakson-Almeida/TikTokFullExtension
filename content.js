@@ -1287,61 +1287,99 @@
                 console.log('🔍 Method 3 failed:', error);
             }
             
-            // Method 4: Try to copy video URL to clipboard (PRIORITY 4)
-            try {
-                console.log('🔍 Method 4: Copying video URL to clipboard');
-                
-                let urlToCopy = videoInfo.src;
-                
-                // If we have a TikTok page URL, try to find the actual video URL
-                if (urlToCopy && urlToCopy.includes('www.tiktok.com') && urlToCopy.includes('/video/')) {
-                    // Look for actual video URLs in the post
-                    const videoElement = post.querySelector('video');
-                    if (videoElement) {
-                        const sources = videoElement.querySelectorAll('source');
-                        for (let source of sources) {
-                            const src = source.src;
-                            if (src && !src.startsWith('blob:') && src.includes('tiktok.com')) {
-                                urlToCopy = src;
-                                console.log('🔍 Using extracted video URL for clipboard:', urlToCopy);
-                                break;
-                            }
-                        }
-                    }
-                }
-                
-                if (urlToCopy) {
-                    await navigator.clipboard.writeText(urlToCopy);
-                    console.log('🔍 Video URL copied to clipboard');
-                    return { success: true, method: 'clipboard', message: 'Video URL copied to clipboard. You can paste it in a new tab to download.' };
-                }
-            } catch (error) {
-                console.log('🔍 Method 4 failed:', error);
-            }
+                         // Method 4: Try to copy video URL to clipboard (PRIORITY 4) - ONLY for direct video URLs
+             try {
+                 console.log('🔍 Method 4: Copying video URL to clipboard');
+                 
+                 // Only copy to clipboard if it's NOT a TikTok page URL
+                 if (videoInfo.src && !videoInfo.src.includes('www.tiktok.com') && !videoInfo.src.includes('(POTENTIALLY_BLOCKED)')) {
+                     let urlToCopy = videoInfo.src;
+                     
+                     // Look for actual video URLs in the post
+                     const videoElement = post.querySelector('video');
+                     if (videoElement) {
+                         const sources = videoElement.querySelectorAll('source');
+                         for (let source of sources) {
+                             const src = source.src;
+                             if (src && !src.startsWith('blob:') && src.includes('tiktok.com')) {
+                                 urlToCopy = src;
+                                 console.log('🔍 Using extracted video URL for clipboard:', urlToCopy);
+                                 break;
+                             }
+                         }
+                     }
+                     
+                     if (urlToCopy) {
+                         await navigator.clipboard.writeText(urlToCopy);
+                         console.log('🔍 Video URL copied to clipboard');
+                         return { success: true, method: 'clipboard', message: 'Video URL copied to clipboard. You can paste it in a new tab to download.' };
+                     }
+                 } else {
+                     console.log('🔍 Skipping clipboard copy - this is a TikTok page URL, will open in new tab instead');
+                 }
+             } catch (error) {
+                 console.log('🔍 Method 4 failed:', error);
+             }
             
-            // Method 5: Open TikTok page in new tab as fallback (PRIORITY 5)
-            try {
-                console.log('🔍 Method 5: Opening TikTok page in new tab as fallback');
-                
-                // Only do this if we have a TikTok page URL
-                if (videoInfo.src && videoInfo.src.includes('www.tiktok.com') && videoInfo.src.includes('/video/')) {
-                    console.log('🔍 Opening TikTok page in new tab for manual download');
-                    const newTab = window.open(videoInfo.src, '_blank');
-                    if (newTab) {
-                        console.log('🔍 Successfully opened TikTok page in new tab');
-                        return { 
-                            success: true, 
-                            method: 'tiktok_page_new_tab', 
-                            message: 'TikTok page opened in new tab (second guide). Right-click on the video and select "Save video as..." to download.' 
-                        };
-                    }
-                }
-            } catch (error) {
-                console.log('🔍 Method 5 failed:', error);
-            }
+                         // Method 5: Open TikTok page in new tab (PRIORITY 5) - ALWAYS for TikTok page URLs
+             try {
+                 console.log('🔍 Method 5: Opening TikTok page in new tab');
+                 
+                 // Always open TikTok page URLs in new tab as requested by user
+                 if (videoInfo.src && videoInfo.src.includes('www.tiktok.com') && videoInfo.src.includes('/video/')) {
+                     console.log('🔍 Opening TikTok page in new tab (second guide):', videoInfo.src);
+                     const newTab = window.open(videoInfo.src, '_blank');
+                     if (newTab) {
+                         console.log('🔍 Successfully opened TikTok page in new tab');
+                         return { 
+                             success: true, 
+                             method: 'tiktok_page_new_tab', 
+                             message: 'TikTok page opened in new tab (second guide). Right-click on the video and select "Save video as..." to download.' 
+                         };
+                     } else {
+                         console.log('🔍 Failed to open new tab, trying alternative approach');
+                         // Try alternative method if window.open fails
+                         const link = document.createElement('a');
+                         link.href = videoInfo.src;
+                         link.target = '_blank';
+                         link.rel = 'noopener noreferrer';
+                         document.body.appendChild(link);
+                         link.click();
+                         document.body.removeChild(link);
+                         
+                         return { 
+                             success: true, 
+                             method: 'tiktok_page_new_tab_alternative', 
+                             message: 'TikTok page opened in new tab (second guide). Right-click on the video and select "Save video as..." to download.' 
+                         };
+                     }
+                 } else {
+                     console.log('🔍 Not a TikTok page URL, skipping Method 5');
+                 }
+             } catch (error) {
+                 console.log('🔍 Method 5 failed:', error);
+             }
             
-            console.log('🔍 All download methods failed');
-            return { success: false, error: 'Could not download video. Please try right-clicking on the video and selecting "Save video as..."' };
+                         // Final fallback: If we have a TikTok page URL and no other method worked, force open in new tab
+             if (videoInfo.src && videoInfo.src.includes('www.tiktok.com') && videoInfo.src.includes('/video/')) {
+                 console.log('🔍 Final fallback: Forcing TikTok page to open in new tab');
+                 try {
+                     const newTab = window.open(videoInfo.src, '_blank');
+                     if (newTab) {
+                         console.log('🔍 Final fallback successful: TikTok page opened in new tab');
+                         return { 
+                             success: true, 
+                             method: 'tiktok_page_new_tab_fallback', 
+                             message: 'TikTok page opened in new tab (second guide). Right-click on the video and select "Save video as..." to download.' 
+                         };
+                     }
+                 } catch (error) {
+                     console.log('🔍 Final fallback failed:', error);
+                 }
+             }
+             
+             console.log('🔍 All download methods failed');
+             return { success: false, error: 'Could not download video. Please try right-clicking on the video and selecting "Save video as..."' };
             
         } catch (error) {
             console.error('🔍 Error in downloadVideoAdvanced:', error);
