@@ -450,34 +450,134 @@
         console.log('TikTok Full Extension: Download video requested for post:', postElement);
         
         try {
-            // Try to find video element
+            // Strategy 1: Try to extract video URL from TikTok's internal data
+            const internalVideoUrl = extractVideoUrlFromTikTokData(postElement);
+            if (internalVideoUrl) {
+                console.log('TikTok Full Extension: Found internal video URL:', internalVideoUrl);
+                window.open(internalVideoUrl, '_blank');
+                return;
+            }
+            
+            // Strategy 2: Look for actual video element with src
             const videoElement = postElement.querySelector('video');
-            if (videoElement && videoElement.src) {
+            if (videoElement && videoElement.src && videoElement.src !== '') {
                 console.log('TikTok Full Extension: Found video source:', videoElement.src);
                 
-                // Open video in new tab
-                window.open(videoElement.src, '_blank');
+                // Check if it's a valid video URL (not data: or blob:)
+                if (videoElement.src.startsWith('http') && !videoElement.src.includes('data:') && !videoElement.src.includes('blob:')) {
+                    window.open(videoElement.src, '_blank');
+                    return;
+                }
+            }
+            
+            // Strategy 3: Look for video element with currentSrc
+            if (videoElement && videoElement.currentSrc && videoElement.currentSrc !== '') {
+                console.log('TikTok Full Extension: Found video currentSrc:', videoElement.currentSrc);
+                
+                if (videoElement.currentSrc.startsWith('http') && !videoElement.currentSrc.includes('data:') && !videoElement.currentSrc.includes('blob:')) {
+                    window.open(videoElement.currentSrc, '_blank');
+                    return;
+                }
+            }
+            
+            // Strategy 4: Try to construct TikTok video URL from patterns
+            const constructedVideoUrl = constructTikTokVideoUrl(postElement);
+            if (constructedVideoUrl) {
+                console.log('TikTok Full Extension: Constructed video URL:', constructedVideoUrl);
+                window.open(constructedVideoUrl, '_blank');
                 return;
             }
             
-            // Try to find video link
+            // Strategy 5: Look for TikTok video page link and extract video ID
             const videoLink = postElement.querySelector('a[href*="/video/"]');
-            if (videoLink) {
+            if (videoLink && videoLink.href) {
                 console.log('TikTok Full Extension: Found video link:', videoLink.href);
                 
-                // Open TikTok video page in new tab
-                window.open(videoLink.href, '_blank');
-                return;
+                // Extract video ID from URL
+                const videoIdMatch = videoLink.href.match(/\/video\/(\d+)/);
+                if (videoIdMatch) {
+                    const videoId = videoIdMatch[1];
+                    console.log('TikTok Full Extension: Extracted video ID:', videoId);
+                    
+                    // Try to construct direct video URL (TikTok's video CDN pattern)
+                    const directVideoUrl = `https://v16-webapp.tiktok.com/video/tos/useast2a/${videoId}/`;
+                    console.log('TikTok Full Extension: Attempting direct video URL:', directVideoUrl);
+                    
+                    // Open the direct video URL in new tab
+                    window.open(directVideoUrl, '_blank');
+                    return;
+                }
             }
             
-            // Fallback: open current page in new tab
-            console.log('TikTok Full Extension: No direct video found, opening current page in new tab');
-            window.open(window.location.href, '_blank');
+            // Strategy 6: Look for any img with TikTok CDN URLs that might be video thumbnails
+            const tiktokImages = postElement.querySelectorAll('img[src*="tiktokcdn.com"]');
+            if (tiktokImages.length > 0) {
+                // Get the first TikTok image and try to convert it to video URL
+                const firstImg = tiktokImages[0];
+                console.log('TikTok Full Extension: Found TikTok image:', firstImg.src);
+                
+                // Try to extract video ID from image URL or construct video URL
+                const imgUrl = firstImg.src;
+                if (imgUrl.includes('/tos-maliva-p-')) {
+                    // This looks like a video thumbnail, try to construct video URL
+                    const videoUrl = imgUrl.replace('/tos-maliva-p-', '/tos-maliva-v-').replace(/\.jpeg.*$/, '.mp4');
+                    console.log('TikTok Full Extension: Attempting video URL from image:', videoUrl);
+                    
+                    window.open(videoUrl, '_blank');
+                    return;
+                }
+            }
+            
+            // Strategy 7: Look for any data attributes that might contain video info
+            const videoData = postElement.querySelector('[data-video-id], [data-video-url], [data-video-src]');
+            if (videoData) {
+                const videoId = videoData.getAttribute('data-video-id') || 
+                               videoData.getAttribute('data-video-url') || 
+                               videoData.getAttribute('data-video-src');
+                
+                if (videoId && videoId.startsWith('http')) {
+                    console.log('TikTok Full Extension: Found video data attribute:', videoId);
+                    window.open(videoId, '_blank');
+                    return;
+                }
+            }
+            
+            // Strategy 8: Look for any script tags or meta tags with video information
+            const scripts = postElement.querySelectorAll('script');
+            for (let script of scripts) {
+                if (script.textContent && script.textContent.includes('video')) {
+                    console.log('TikTok Full Extension: Found script with video content');
+                    // Try to extract video URL from script content
+                    const videoUrlMatch = script.textContent.match(/"videoUrl":"([^"]+)"/);
+                    if (videoUrlMatch) {
+                        const videoUrl = videoUrlMatch[1];
+                        console.log('TikTok Full Extension: Extracted video URL from script:', videoUrl);
+                        window.open(videoUrl, '_blank');
+                        return;
+                    }
+                }
+            }
+            
+            // Fallback: If no video found, open the TikTok post page in new tab
+            // This allows user to manually download from the post page
+            if (videoLink && videoLink.href) {
+                console.log('TikTok Full Extension: No direct video found, opening TikTok post page in new tab');
+                window.open(videoLink.href, '_blank');
+            } else {
+                console.log('TikTok Full Extension: No video or link found, opening current page in new tab');
+                window.open(window.location.href, '_blank');
+            }
             
         } catch (error) {
             console.error('TikTok Full Extension: Error downloading video:', error);
-            // Fallback: open current page in new tab
-            window.open(window.location.href, '_blank');
+            
+            // Final fallback: try to open any video link found
+            const videoLink = postElement.querySelector('a[href*="/video/"]');
+            if (videoLink && videoLink.href) {
+                window.open(videoLink.href, '_blank');
+            } else {
+                window.open(window.location.href, '_blank');
+            }
         }
     }
 
@@ -597,6 +697,110 @@
         childList: true,
         subtree: true
     });
+
+    // Function to try to extract video URLs from TikTok's internal data
+    function extractVideoUrlFromTikTokData(postElement) {
+        try {
+            // Strategy 1: Look for TikTok's internal video data in window object
+            if (window.__INITIAL_STATE__ && window.__INITIAL_STATE__.ItemModule) {
+                console.log('TikTok Full Extension: Found TikTok initial state');
+                // Try to find video data in the state
+                const itemModule = window.__INITIAL_STATE__.ItemModule;
+                for (let key in itemModule) {
+                    const item = itemModule[key];
+                    if (item && item.video && item.video.playAddr) {
+                        console.log('TikTok Full Extension: Found video playAddr in state:', item.video.playAddr);
+                        return item.video.playAddr;
+                    }
+                }
+            }
+
+            // Strategy 2: Look for video data in React components
+            const reactRoot = document.querySelector('#root') || document.querySelector('[data-reactroot]');
+            if (reactRoot) {
+                // Try to access React component data
+                const reactKey = Object.keys(reactRoot).find(key => key.startsWith('__reactProps$'));
+                if (reactKey) {
+                    const reactProps = reactRoot[reactKey];
+                    if (reactProps && reactProps.videoData) {
+                        console.log('TikTok Full Extension: Found React video data');
+                        return reactProps.videoData.videoUrl || reactProps.videoData.playAddr;
+                    }
+                }
+            }
+
+            // Strategy 3: Look for any global variables that might contain video data
+            for (let key in window) {
+                if (key.toLowerCase().includes('video') || key.toLowerCase().includes('tiktok')) {
+                    try {
+                        const value = window[key];
+                        if (value && typeof value === 'object' && value.videoUrl) {
+                            console.log('TikTok Full Extension: Found video URL in global variable:', key);
+                            return value.videoUrl;
+                        }
+                    } catch (e) {
+                        // Ignore errors when accessing window properties
+                    }
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('TikTok Full Extension: Error extracting video URL from TikTok data:', error);
+            return null;
+        }
+    }
+
+    // Function to try to construct video URL from TikTok patterns
+    function constructTikTokVideoUrl(postElement) {
+        try {
+            // Look for video ID in various places
+            let videoId = null;
+            
+            // From video link
+            const videoLink = postElement.querySelector('a[href*="/video/"]');
+            if (videoLink) {
+                const match = videoLink.href.match(/\/video\/(\d+)/);
+                if (match) videoId = match[1];
+            }
+            
+            // From data attributes
+            if (!videoId) {
+                const dataVideo = postElement.querySelector('[data-video-id]');
+                if (dataVideo) videoId = dataVideo.getAttribute('data-video-id');
+            }
+            
+            // From class names or IDs that might contain video ID
+            if (!videoId) {
+                const videoContainer = postElement.querySelector('[class*="video"], [id*="video"]');
+                if (videoContainer) {
+                    const idMatch = videoContainer.id.match(/(\d+)/);
+                    if (idMatch) videoId = idMatch[1];
+                }
+            }
+            
+            if (videoId) {
+                console.log('TikTok Full Extension: Constructing video URL for ID:', videoId);
+                
+                // Try different TikTok video URL patterns
+                const videoUrlPatterns = [
+                    `https://v16-webapp.tiktok.com/video/tos/useast2a/${videoId}/`,
+                    `https://v16-webapp.tiktok.com/video/tos/useast2a/${videoId}/index.m3u8`,
+                    `https://v16-webapp.tiktok.com/video/tos/useast2a/${videoId}/index.mp4`,
+                    `https://v16-webapp.tiktok.com/video/tos/useast2a/${videoId}/video.mp4`,
+                    `https://v16-webapp.tiktok.com/video/tos/useast2a/${videoId}/play.mp4`
+                ];
+                
+                // Return the first pattern (user can try others if needed)
+                return videoUrlPatterns[0];
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('TikTok Full Extension: Error constructing TikTok video URL:', error);
+            return null;
+        }
+    }
 
     // Expose functions for debugging
     window.tikTokExtension = {
