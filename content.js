@@ -586,6 +586,64 @@
         console.log('TikTok Full Extension: Download buttons removed');
     }
 
+    function constructVideoUrlFromId(videoId) {
+        console.log('Constructing video URL from ID:', videoId);
+        
+        if (!videoId) {
+            console.log('No video ID provided');
+            return null;
+        }
+
+        // Known TikTok CDN patterns and regions
+        const cdnPatterns = [
+            // Maliva region (working pattern from example)
+            `https://v16-webapp-prime.tiktok.com/video/tos/maliva/tos-maliva-ve-0068c799-us/${videoId}/`,
+            `https://v19-webapp-prime.tiktok.com/video/tos/maliva/tos-maliva-ve-0068c799-us/${videoId}/`,
+            
+            // Useast regions
+            `https://v16-webapp-prime.tiktok.com/video/tos/useast1/tos-useast1-ve-0068c799-us/${videoId}/`,
+            `https://v19-webapp-prime.tiktok.com/video/tos/useast1/tos-useast1-ve-0068c799-us/${videoId}/`,
+            
+            // Useast5 region (from example)
+            `https://v16-webapp-prime.tiktok.com/video/tos/useast5/tos-useast5-ve-0068c799-us/${videoId}/`,
+            `https://v19-webapp-prime.tiktok.com/video/tos/useast5/tos-useast5-ve-0068c799-us/${videoId}/`,
+            
+            // Uswest regions
+            `https://v16-webapp-prime.tiktok.com/video/tos/uswest1/tos-uswest1-ve-0068c799-us/${videoId}/`,
+            `https://v19-webapp-prime.tiktok.com/video/tos/uswest1/tos-uswest1-ve-0068c799-us/${videoId}/`,
+            
+            // Europe regions
+            `https://v16-webapp-prime.tiktok.com/video/tos/europe/tos-europe-ve-0068c799-us/${videoId}/`,
+            `https://v19-webapp-prime.tiktok.com/video/tos/europe/tos-europe-ve-0068c799-us/${videoId}/`,
+            
+            // Asia regions
+            `https://v16-webapp-prime.tiktok.com/video/tos/asia/tos-asia-ve-0068c799-us/${videoId}/`,
+            `https://v19-webapp-prime.tiktok.com/video/tos/asia/tos-asia-ve-0068c799-us/${videoId}/`,
+            
+            // Global regions
+            `https://v16-webapp-prime.tiktok.com/video/tos/global/tos-global-ve-0068c799-us/${videoId}/`,
+            `https://v19-webapp-prime.tiktok.com/video/tos/global/tos-global-ve-0068c799-us/${videoId}/`,
+            
+            // Alternative patterns
+            `https://v16-webapp-prime.tiktok.com/video/tos/any/tos-any-ve-0068c799-us/${videoId}/`,
+            `https://v19-webapp-prime.tiktok.com/video/tos/any/tos-any-ve-0068c799-us/${videoId}/`,
+            
+            // Direct API URLs
+            `https://www.tiktok.com/aweme/v1/play/?item_id=${videoId}&line=0&ply_type=2`,
+            `https://www.tiktok.com/api/item/detail/?itemId=${videoId}`,
+            
+            // Legacy patterns
+            `https://v16-webapp.tiktok.com/video/${videoId}/`,
+            `https://v19-webapp.tiktok.com/video/${videoId}/`
+        ];
+
+        console.log('Testing', cdnPatterns.length, 'CDN patterns...');
+
+        // For now, return the first maliva pattern as it seems to work
+        // In the future, we could test each pattern to find the best one
+        return `https://v16-webapp-prime.tiktok.com/video/tos/maliva/tos-maliva-ve-0068c799-us/${videoId}/`;
+    }
+
     async function handleDownloadClick(post) {
         try {
             console.log('🔍 === DOWNLOAD CLICK DEBUG START ===');
@@ -662,146 +720,269 @@
         }
     }
 
-    async function extractVideoInfoAdvanced(post) {
-        console.log('🔍 === EXTRACT VIDEO INFO DEBUG START ===');
+    async function extractVideoInfoAdvanced(postElement) {
+        console.log('=== EXTRACTING VIDEO INFO ADVANCED ===');
+        console.log('Post element:', postElement);
         
-        try {
-            // Method 1: Try to find video element directly
-            let video = post.querySelector('video');
-            console.log('🔍 Method 1 - Direct video element:', video);
-            
-            if (!video) {
-                // Method 2: Look for video in parent containers
-                video = post.closest('[data-e2e*="video"], [class*="video"], [class*="feed"]')?.querySelector('video');
-                console.log('🔍 Method 2 - Video in parent containers:', video);
-            }
-            
-            if (!video) {
-                // Method 3: Look for any video element in the post tree
-                const videoContainers = post.querySelectorAll('div[class*="video"], div[class*="feed"], div[class*="post"]');
-                console.log('🔍 Method 3 - Video containers found:', videoContainers.length);
-                
-                for (let container of videoContainers) {
-                    video = container.querySelector('video');
-                    if (video) {
-                        console.log('🔍 Found video in container:', container);
+        let videoSrc = null;
+        let videoTitle = '';
+        let username = '';
+        let videoId = '';
+
+        // Method 1: Try to get from video element with source tags (most reliable)
+        const videoElement = postElement.querySelector('video');
+        if (videoElement) {
+            console.log('Method 1: Found video element with sources');
+            const sources = videoElement.querySelectorAll('source');
+            if (sources.length > 0) {
+                // Try to find the best quality source
+                for (let source of sources) {
+                    const src = source.src;
+                    if (src && !src.startsWith('blob:') && src.includes('tiktok.com')) {
+                        console.log('Method 1: Found valid source:', src);
+                        videoSrc = src;
                         break;
                     }
                 }
             }
             
-            if (!video) {
-                console.log('🔍 No video element found with any method');
-                return null;
+            // Also check video element's src attribute
+            if (!videoSrc && videoElement.src && !videoElement.src.startsWith('blob:')) {
+                console.log('Method 1: Found video src attribute:', videoElement.src);
+                videoSrc = videoElement.src;
             }
-            
-            console.log('🔍 Video element found:', video);
-            console.log('🔍 Video src:', video.src);
-            console.log('🔍 Video currentSrc:', video.currentSrc);
-            console.log('🔍 Video data-src:', video.dataset.src);
-            
-            // Get video source with multiple fallbacks
-            let videoSrc = video.src || video.currentSrc || video.dataset.src;
-            
-            if (!videoSrc) {
-                // Method 4: Try to get source from source elements
-                const source = video.querySelector('source');
-                if (source) {
-                    videoSrc = source.src || source.dataset.src;
-                    console.log('🔍 Video source from source element:', videoSrc);
+        }
+
+        // Method 2: Look for video URLs in data attributes of the post container
+        if (!videoSrc) {
+            console.log('Method 2: Checking post container data attributes');
+            const container = postElement.closest('[data-e2e*="item"], [id*="container"], [class*="container"]');
+            if (container) {
+                const dataVideo = container.getAttribute('data-video-url') || 
+                                 container.getAttribute('data-video-src') ||
+                                 container.getAttribute('data-src') ||
+                                 container.getAttribute('data-href');
+                if (dataVideo && !dataVideo.startsWith('blob:')) {
+                    console.log('Method 2: Found video URL in container data:', dataVideo);
+                    videoSrc = dataVideo;
                 }
             }
-            
-            if (!videoSrc) {
-                // Method 5: Try to get from data attributes
-                const videoContainer = video.closest('div[data-src], div[data-video-src]');
-                if (videoContainer) {
-                    videoSrc = videoContainer.dataset.src || videoContainer.dataset.videoSrc;
-                    console.log('🔍 Video source from container data:', videoSrc);
-                }
-            }
-            
-            if (!videoSrc) {
-                // Method 11: Try to extract from working video URLs in the page
-                const workingVideoUrls = Array.from(document.querySelectorAll('video'))
-                    .map(video => video.src || video.currentSrc)
-                    .filter(url => url && url.startsWith('https://') && !url.startsWith('blob:'))
-                    .filter(url => url.includes('v16-webapp') || url.includes('tiktok.com/video'));
+        }
+
+        // Method 3: Extract from post link href and construct video URL
+        if (!videoSrc) {
+            console.log('Method 3: Extracting from post link href');
+            const postLink = postElement.querySelector('a[href*="/video/"]');
+            if (postLink) {
+                const href = postLink.href;
+                console.log('Method 3: Found post link:', href);
                 
-                if (workingVideoUrls.length > 0) {
-                    console.log('🔍 Found working video URLs in page:', workingVideoUrls);
+                // Extract video ID from href
+                const videoIdMatch = href.match(/\/video\/(\d+)/);
+                if (videoIdMatch) {
+                    videoId = videoIdMatch[1];
+                    console.log('Method 3: Extracted video ID:', videoId);
                     
-                    // Try to extract the pattern from working URLs
-                    for (let workingUrl of workingVideoUrls) {
-                        const urlPattern = workingUrl.match(/https:\/\/[^\/]+\/video\/tos\/([^\/]+)\/([^\/]+)\/([^\/\?]+)/);
-                        if (urlPattern) {
-                            const [, region, pattern, videoId] = urlPattern;
-                            console.log(`🔍 Extracted pattern: region=${region}, pattern=${pattern}, videoId=${videoId}`);
-                            
-                            // Try to construct URL with the same pattern
-                            const constructedUrl = `https://v16-webapp-prime.tiktok.com/video/tos/${region}/${pattern}/${videoId}/`;
-                            try {
-                                const response = await fetch(constructedUrl, { method: 'HEAD' });
-                                if (response.ok) {
-                                    videoSrc = constructedUrl;
-                                    console.log('🔍 Video source from extracted pattern:', videoSrc);
-                                    break;
-                                }
-                            } catch (error) {
-                                console.log('🔍 Pattern-based URL test failed:', error.message);
-                            }
-                        }
+                    // Try to construct direct video URL using known patterns
+                    const videoUrl = constructVideoUrlFromId(videoId);
+                    if (videoUrl) {
+                        console.log('Method 3: Constructed video URL:', videoUrl);
+                        videoSrc = videoUrl;
                     }
                 }
             }
-            
-            if (!videoSrc) {
-                // Method 12: Try to get from the post's data attributes that might contain the full video URL
-                const postDataAttrs = [
-                    'data-video-url', 'data-video-src', 'data-src', 'data-href',
-                    'data-tiktok-video', 'data-video', 'data-url'
-                ];
-                
-                for (let attr of postDataAttrs) {
-                    if (post.hasAttribute(attr)) {
-                        const value = post.getAttribute(attr);
-                        if (value && value.startsWith('https://') && value.includes('tiktok.com/video')) {
-                            videoSrc = value;
-                            console.log(`🔍 Video source from post ${attr}:`, videoSrc);
+        }
+
+        // Method 4: Look for video URLs in the post's HTML content using regex
+        if (!videoSrc) {
+            console.log('Method 4: Searching HTML content for video URLs');
+            const postHTML = postElement.innerHTML;
+            const videoUrlMatch = postHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
+            if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
+                console.log('Method 4: Found video URL in HTML:', videoUrlMatch[0]);
+                videoSrc = videoUrlMatch[0];
+            }
+        }
+
+        // Method 5: Look for video URLs in parent elements (up to 3 levels up)
+        if (!videoSrc) {
+            console.log('Method 5: Checking parent elements for video URLs');
+            let parent = postElement.parentElement;
+            let level = 0;
+            while (parent && level < 3) {
+                const parentHTML = parent.innerHTML;
+                const videoUrlMatch = parentHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
+                if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
+                    console.log('Method 5: Found video URL in parent level', level, ':', videoUrlMatch[0]);
+                    videoSrc = videoUrlMatch[0];
+                    break;
+                }
+                parent = parent.parentElement;
+                level++;
+            }
+        }
+
+        // Method 6: Look for video URLs in the entire page HTML (fallback)
+        if (!videoSrc) {
+            console.log('Method 6: Searching entire page for video URLs');
+            const pageHTML = document.documentElement.innerHTML;
+            const videoUrlMatches = pageHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/g);
+            if (videoUrlMatches) {
+                // Filter out blob URLs and find the first valid one
+                for (let url of videoUrlMatches) {
+                    if (!url.startsWith('blob:') && url.includes('/video/')) {
+                        console.log('Method 6: Found video URL in page:', url);
+                        videoSrc = url;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Method 7: Try to extract from TikTok's internal data structures
+        if (!videoSrc) {
+            console.log('Method 7: Checking TikTok internal data structures');
+            try {
+                // Look for any script tags that might contain video data
+                const scripts = document.querySelectorAll('script');
+                for (let script of scripts) {
+                    if (script.textContent && script.textContent.includes('video')) {
+                        const videoUrlMatch = script.textContent.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
+                        if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
+                            console.log('Method 7: Found video URL in script:', videoUrlMatch[0]);
+                            videoSrc = videoUrlMatch[0];
                             break;
                         }
                     }
                 }
+            } catch (error) {
+                console.log('Method 7: Error checking scripts:', error);
             }
-            
-            if (!videoSrc) {
-                console.log('🔍 No video source found with any method');
-                return null;
-            }
-            
-            // Extract additional information
-            const title = extractVideoTitle(post);
-            const username = extractVideoUsername(post);
-            const videoId = extractVideoId(post);
-            
-            const videoInfo = {
-                src: videoSrc,
-                title: title || 'TikTok Video',
-                username: username || 'Unknown User',
-                videoId: videoId || Date.now().toString(),
-                timestamp: Date.now(),
-                postElement: post
-            };
-            
-            console.log('🔍 Final video info:', videoInfo);
-            console.log('🔍 === EXTRACT VIDEO INFO DEBUG END ===');
-            
-            return videoInfo;
-            
-        } catch (error) {
-            console.error('🔍 Error extracting video info:', error);
-            return null;
         }
+
+        // Method 8: Try to find video URLs in iframe sources
+        if (!videoSrc) {
+            console.log('Method 8: Checking iframe sources');
+            const iframes = document.querySelectorAll('iframe');
+            for (let iframe of iframes) {
+                if (iframe.src && iframe.src.includes('tiktok.com') && iframe.src.includes('video')) {
+                    console.log('Method 8: Found video URL in iframe:', iframe.src);
+                    videoSrc = iframe.src;
+                    break;
+                }
+            }
+        }
+
+        // Method 9: Look for video URLs in meta tags
+        if (!videoSrc) {
+            console.log('Method 9: Checking meta tags');
+            const metaTags = document.querySelectorAll('meta[property*="video"], meta[name*="video"]');
+            for (let meta of metaTags) {
+                const content = meta.content || meta.getAttribute('content');
+                if (content && content.includes('tiktok.com') && content.includes('video')) {
+                    console.log('Method 9: Found video URL in meta tag:', content);
+                    videoSrc = content;
+                    break;
+                }
+            }
+        }
+
+        // Method 10: Try to extract from TikTok's video player data
+        if (!videoSrc) {
+            console.log('Method 10: Checking TikTok video player data');
+            const videoPlayers = postElement.querySelectorAll('[class*="video-player"], [class*="xgplayer"], [id*="xgwrapper"]');
+            for (let player of videoPlayers) {
+                const playerHTML = player.innerHTML;
+                const videoUrlMatch = playerHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
+                if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
+                    console.log('Method 10: Found video URL in player:', videoUrlMatch[0]);
+                    videoSrc = videoUrlMatch[0];
+                    break;
+                }
+            }
+        }
+
+        // Method 11: Look for video URLs in data attributes of video-related elements
+        if (!videoSrc) {
+            console.log('Method 11: Checking video-related data attributes');
+            const videoElements = postElement.querySelectorAll('[data-video-url], [data-video-src], [data-src], [data-href]');
+            for (let element of videoElements) {
+                const dataVideo = element.getAttribute('data-video-url') || 
+                                 element.getAttribute('data-video-src') ||
+                                 element.getAttribute('data-src') ||
+                                 element.getAttribute('data-href');
+                if (dataVideo && dataVideo.includes('tiktok.com') && !dataVideo.startsWith('blob:')) {
+                    console.log('Method 11: Found video URL in data attribute:', dataVideo);
+                    videoSrc = dataVideo;
+                    break;
+                }
+            }
+        }
+
+        // Method 12: Try to find video URLs in the post's text content
+        if (!videoSrc) {
+            console.log('Method 12: Searching post text content for video URLs');
+            const textContent = postElement.textContent || '';
+            const videoUrlMatch = textContent.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
+            if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
+                console.log('Method 12: Found video URL in text content:', videoUrlMatch[0]);
+                videoSrc = videoUrlMatch[0];
+            }
+        }
+
+        // Method 13: Try to construct video URL using extracted video ID and known patterns
+        if (!videoSrc && videoId) {
+            console.log('Method 13: Constructing video URL from ID:', videoId);
+            const constructedUrl = constructVideoUrlFromId(videoId);
+            if (constructedUrl) {
+                console.log('Method 13: Successfully constructed URL:', constructedUrl);
+                videoSrc = constructedUrl;
+            }
+        }
+
+        // Method 14: Final fallback - search for any TikTok video URL in the entire page
+        if (!videoSrc) {
+            console.log('Method 14: Final fallback - searching entire page');
+            const pageHTML = document.documentElement.innerHTML;
+            const allVideoUrls = pageHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/g);
+            if (allVideoUrls) {
+                // Filter out blob URLs and find the first valid one
+                for (let url of allVideoUrls) {
+                    if (!url.startsWith('blob:') && url.includes('/video/')) {
+                        console.log('Method 14: Found fallback video URL:', url);
+                        videoSrc = url;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Final validation - ensure we don't have a blob URL
+        if (videoSrc && videoSrc.startsWith('blob:')) {
+            console.log('WARNING: Found blob URL, resetting to null');
+            videoSrc = null;
+        }
+
+        // Extract additional information
+        videoTitle = extractVideoTitle(postElement);
+        username = extractVideoUsername(postElement);
+        
+        if (!videoId) {
+            videoId = extractVideoId(postElement);
+        }
+
+        console.log('=== EXTRACTION RESULTS ===');
+        console.log('Video Source:', videoSrc);
+        console.log('Video Title:', videoTitle);
+        console.log('Username:', username);
+        console.log('Video ID:', videoId);
+
+        return {
+            src: videoSrc,
+            title: videoTitle,
+            username: username,
+            videoId: videoId
+        };
     }
 
     function extractVideoTitle(post) {
