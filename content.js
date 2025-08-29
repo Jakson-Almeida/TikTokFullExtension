@@ -142,6 +142,17 @@
                     sendResponse(pingResponse);
                     break;
                     
+                case 'test':
+                    // Test case for debugging
+                    console.log('TikTok Full Extension: Received test request');
+                    sendResponse({
+                        success: true,
+                        message: 'Test successful - content script is working',
+                        timestamp: Date.now(),
+                        scriptId: window['tiktok-full-extension-v1']
+                    });
+                    break;
+                    
                 default:
                     console.log('TikTok Full Extension: Unknown action:', request.action);
                     console.log('TikTok Full Extension: Action comparison with ping:', request.action === 'ping');
