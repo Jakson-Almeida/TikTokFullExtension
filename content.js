@@ -722,6 +722,59 @@
             }
             
             if (!videoSrc) {
+                // Method 11: Try to extract from working video URLs in the page
+                const workingVideoUrls = Array.from(document.querySelectorAll('video'))
+                    .map(video => video.src || video.currentSrc)
+                    .filter(url => url && url.startsWith('https://') && !url.startsWith('blob:'))
+                    .filter(url => url.includes('v16-webapp') || url.includes('tiktok.com/video'));
+                
+                if (workingVideoUrls.length > 0) {
+                    console.log('🔍 Found working video URLs in page:', workingVideoUrls);
+                    
+                    // Try to extract the pattern from working URLs
+                    for (let workingUrl of workingVideoUrls) {
+                        const urlPattern = workingUrl.match(/https:\/\/[^\/]+\/video\/tos\/([^\/]+)\/([^\/]+)\/([^\/\?]+)/);
+                        if (urlPattern) {
+                            const [, region, pattern, videoId] = urlPattern;
+                            console.log(`🔍 Extracted pattern: region=${region}, pattern=${pattern}, videoId=${videoId}`);
+                            
+                            // Try to construct URL with the same pattern
+                            const constructedUrl = `https://v16-webapp-prime.tiktok.com/video/tos/${region}/${pattern}/${videoId}/`;
+                            try {
+                                const response = await fetch(constructedUrl, { method: 'HEAD' });
+                                if (response.ok) {
+                                    videoSrc = constructedUrl;
+                                    console.log('🔍 Video source from extracted pattern:', videoSrc);
+                                    break;
+                                }
+                            } catch (error) {
+                                console.log('🔍 Pattern-based URL test failed:', error.message);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!videoSrc) {
+                // Method 12: Try to get from the post's data attributes that might contain the full video URL
+                const postDataAttrs = [
+                    'data-video-url', 'data-video-src', 'data-src', 'data-href',
+                    'data-tiktok-video', 'data-video', 'data-url'
+                ];
+                
+                for (let attr of postDataAttrs) {
+                    if (post.hasAttribute(attr)) {
+                        const value = post.getAttribute(attr);
+                        if (value && value.startsWith('https://') && value.includes('tiktok.com/video')) {
+                            videoSrc = value;
+                            console.log(`🔍 Video source from post ${attr}:`, videoSrc);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (!videoSrc) {
                 console.log('🔍 No video source found with any method');
                 return null;
             }
