@@ -430,12 +430,16 @@
 
     // Download functionality
     function injectDownloadButtons() {
+        console.log('🔍 === INJECT DOWNLOAD BUTTONS DEBUG START ===');
+        
         if (!downloadMode.enabled) {
-            console.log('TikTok Full Extension: Download mode not enabled, skipping button injection');
+            console.log('🔍 TikTok Full Extension: Download mode not enabled, skipping button injection');
             return;
         }
         
-        console.log('TikTok Full Extension: Injecting download buttons...');
+        console.log('🔍 TikTok Full Extension: Injecting download buttons...');
+        console.log('🔍 Current URL:', window.location.href);
+        console.log('🔍 Document ready state:', document.readyState);
         
         // Find all TikTok posts/videos - try multiple selectors
         const selectors = [
@@ -449,31 +453,67 @@
             '.video-feed-item'
         ];
         
+        console.log('🔍 Trying selectors:', selectors);
+        
         let posts = [];
         for (let selector of selectors) {
             const found = document.querySelectorAll(selector);
+            console.log(`🔍 Selector "${selector}" found ${found.length} elements`);
             if (found.length > 0) {
                 posts = found;
-                console.log(`TikTok Full Extension: Found ${posts.length} posts using selector: ${selector}`);
+                console.log(`🔍 TikTok Full Extension: Found ${posts.length} posts using selector: ${selector}`);
                 break;
             }
         }
         
         if (posts.length === 0) {
-            console.log('TikTok Full Extension: No posts found, trying alternative approach...');
+            console.log('🔍 No posts found, trying alternative approach...');
             // Try to find any video containers
             posts = document.querySelectorAll('div[class*="video"], div[class*="feed"], div[class*="post"]');
-            console.log(`TikTok Full Extension: Found ${posts.length} potential posts using alternative selectors`);
+            console.log(`🔍 TikTok Full Extension: Found ${posts.length} potential posts using alternative selectors`);
+            
+            // If still no posts, try more generic selectors
+            if (posts.length === 0) {
+                console.log('🔍 Trying more generic selectors...');
+                const genericSelectors = [
+                    'div[class*="DivItemContainer"]',
+                    'div[class*="DivVideoFeedV2"]',
+                    'div[class*="DivItemContainerV2"]',
+                    'div[class*="DivSearchItemContainer"]',
+                    'div[class*="DivSearchVideoItem"]'
+                ];
+                
+                for (let selector of genericSelectors) {
+                    const found = document.querySelectorAll(selector);
+                    console.log(`🔍 Generic selector "${selector}" found ${found.length} elements`);
+                    if (found.length > 0) {
+                        posts = found;
+                        console.log(`🔍 TikTok Full Extension: Found ${posts.length} posts using generic selector: ${selector}`);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        console.log(`🔍 Total posts found: ${posts.length}`);
+        
+        if (posts.length > 0) {
+            console.log('🔍 First post element:', posts[0]);
+            console.log('🔍 First post classes:', posts[0].className);
+            console.log('🔍 First post attributes:', Array.from(posts[0].attributes).map(attr => `${attr.name}="${attr.value}"`));
         }
         
         posts.forEach((post, index) => {
             if (!post.hasAttribute('data-tiktok-download-injected')) {
-                console.log(`TikTok Full Extension: Injecting download button into post ${index + 1}`);
+                console.log(`🔍 TikTok Full Extension: Injecting download button into post ${index + 1}`);
                 injectDownloadButton(post);
+            } else {
+                console.log(`🔍 Post ${index + 1} already has download button`);
             }
         });
         
-        console.log(`TikTok Full Extension: Download button injection complete. Total posts processed: ${posts.length}`);
+        console.log(`🔍 Download button injection complete. Total posts processed: ${posts.length}`);
+        console.log('🔍 === INJECT DOWNLOAD BUTTONS DEBUG END ===');
     }
 
     function injectDownloadButton(post) {
