@@ -794,7 +794,9 @@
     }
 
     function extractVideoId(post) {
-        // Try to extract video ID from various sources
+        console.log('🔍 === EXTRACT VIDEO ID DEBUG START ===');
+        
+        // Method 1: Try to extract video ID from various sources
         const videoIdSelectors = [
             '[data-e2e="video-item"]',
             '[data-video-id]',
@@ -805,10 +807,78 @@
             const element = post.querySelector(selector);
             if (element) {
                 const id = element.dataset.videoId || element.dataset.id || element.getAttribute('data-video-id') || element.getAttribute('data-id');
-                if (id) return id;
+                if (id) {
+                    console.log(`🔍 Video ID found from selector ${selector}:`, id);
+                    return id;
+                }
             }
         }
         
+        // Method 2: Try to get from post container attributes
+        const postIdAttrs = ['data-video-id', 'data-id', 'data-item-id'];
+        for (let attr of postIdAttrs) {
+            if (post.hasAttribute(attr)) {
+                const id = post.getAttribute(attr);
+                console.log(`🔍 Video ID found from post ${attr}:`, id);
+                return id;
+            }
+        }
+        
+        // Method 3: Try to extract from post URL or href
+        const postLinks = post.querySelectorAll('a[href*="/video/"], a[href*="/@"]');
+        for (let link of postLinks) {
+            const href = link.href;
+            if (href) {
+                // Extract video ID from URL patterns like /video/1234567890/
+                const videoIdMatch = href.match(/\/video\/(\d+)/);
+                if (videoIdMatch) {
+                    const id = videoIdMatch[1];
+                    console.log(`🔍 Video ID found from link href:`, id);
+                    return id;
+                }
+            }
+        }
+        
+        // Method 4: Try to get from post's parent containers
+        let parent = post.parentElement;
+        let depth = 0;
+        while (parent && depth < 5) { // Limit search depth
+            const parentIdAttrs = ['data-video-id', 'data-id', 'data-item-id'];
+            for (let attr of parentIdAttrs) {
+                if (parent.hasAttribute(attr)) {
+                    const id = parent.getAttribute(attr);
+                    console.log(`🔍 Video ID found from parent ${attr} at depth ${depth}:`, id);
+                    return id;
+                }
+            }
+            parent = parent.parentElement;
+            depth++;
+        }
+        
+        // Method 5: Try to extract from post's class names or IDs
+        const postClasses = post.className;
+        const postId = post.id;
+        
+        // Look for ID patterns in class names
+        const classIdMatch = postClasses.match(/(\d{10,})/);
+        if (classIdMatch) {
+            const id = classIdMatch[1];
+            console.log(`🔍 Video ID found from class name:`, id);
+            return id;
+        }
+        
+        // Look for ID patterns in post ID
+        if (postId) {
+            const idMatch = postId.match(/(\d{10,})/);
+            if (idMatch) {
+                const id = idMatch[1];
+                console.log(`🔍 Video ID found from post ID:`, id);
+                return id;
+            }
+        }
+        
+        console.log('🔍 No video ID found with any method');
+        console.log('🔍 === EXTRACT VIDEO ID DEBUG END ===');
         return null;
     }
 
