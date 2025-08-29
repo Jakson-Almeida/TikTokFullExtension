@@ -179,61 +179,82 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function enableDownloadMode() {
+        console.log('=== DOWNLOAD MODE DEBUG START ===');
+        console.log('1. Function called');
+        
         try {
+            console.log('2. Querying active tab...');
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            console.log('3. Active tab found:', tab);
             
             if (!tab.url || !tab.url.includes('tiktok.com')) {
+                console.log('4. Not on TikTok page, showing alert');
                 alert('Please navigate to a TikTok page first');
                 return;
             }
+            
+            console.log('4. On TikTok page:', tab.url);
 
             // First, test communication with content script
-            console.log('Testing communication with content script...');
+            console.log('5. Testing communication with content script...');
             let testResponse;
             
             // Try ping first
             try {
-                testResponse = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
-                console.log('Ping response:', testResponse);
-                console.log('Ping response type:', typeof testResponse);
-                console.log('Ping response keys:', testResponse ? Object.keys(testResponse) : 'null/undefined');
-                console.log('Ping response stringified:', JSON.stringify(testResponse));
+                console.log('6. Sending ping message...');
+                const pingMessage = { action: 'ping' };
+                console.log('6a. Ping message:', pingMessage);
+                console.log('6b. Ping message type:', typeof pingMessage);
+                console.log('6c. Ping message action type:', typeof pingMessage.action);
+                
+                testResponse = await chrome.tabs.sendMessage(tab.id, pingMessage);
+                console.log('7. Ping response received:', testResponse);
+                console.log('7a. Ping response type:', typeof testResponse);
+                console.log('7b. Ping response keys:', testResponse ? Object.keys(testResponse) : 'null/undefined');
+                console.log('7c. Ping response stringified:', JSON.stringify(testResponse));
                 
                 // Check if response has the expected structure
                 if (testResponse && typeof testResponse === 'object') {
-                    console.log('Response has success property:', 'success' in testResponse);
-                    console.log('Response success value:', testResponse.success);
+                    console.log('7d. Response has success property:', 'success' in testResponse);
+                    console.log('7e. Response success value:', testResponse.success);
+                    console.log('7f. Response error property:', 'error' in testResponse);
+                    console.log('7g. Response error value:', testResponse.error);
                 }
             } catch (error) {
-                console.error('Ping failed:', error);
+                console.error('8. Ping failed with error:', error);
+                console.error('8a. Error message:', error.message);
+                console.error('8b. Error stack:', error.stack);
                 
                 // Try alternative approach - get page info
-                console.log('Trying alternative communication method...');
+                console.log('9. Trying alternative communication method...');
                 try {
+                    console.log('9a. Sending getPageInfo message...');
                     testResponse = await chrome.tabs.sendMessage(tab.id, { action: 'getPageInfo' });
-                    console.log('Alternative response (getPageInfo):', testResponse);
+                    console.log('9b. Alternative response (getPageInfo):', testResponse);
                     if (testResponse && testResponse.success) {
-                        console.log('Alternative method successful, using this response');
+                        console.log('9c. Alternative method successful, using this response');
                         testResponse = { success: true, message: 'Communication established via getPageInfo' };
                     } else {
                         throw new Error('Alternative method also failed');
                     }
                 } catch (altError) {
-                    console.error('Alternative method also failed:', altError);
+                    console.error('10. Alternative method also failed:', altError);
                     
                     // Final attempt - wait a bit and try again
-                    console.log('Waiting 2 seconds and trying one more time...');
+                    console.log('11. Waiting 2 seconds and trying one more time...');
                     await new Promise(resolve => setTimeout(resolve, 2000));
                     
                     try {
+                        console.log('11a. Retry ping attempt...');
                         testResponse = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+                        console.log('11b. Retry response:', testResponse);
                         if (testResponse && testResponse.success) {
-                            console.log('Retry successful after delay');
+                            console.log('11c. Retry successful after delay');
                         } else {
                             throw new Error('Retry also failed');
                         }
                     } catch (retryError) {
-                        console.error('All communication attempts failed:', retryError);
+                        console.error('12. All communication attempts failed:', retryError);
                         alert('Cannot communicate with TikTok page. Please:\n1. Refresh the page\n2. Wait a few seconds\n3. Try again');
                         return;
                     }
@@ -241,42 +262,59 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (!testResponse || !testResponse.success) {
-                console.error('Invalid ping response:', testResponse);
+                console.error('13. Invalid ping response:', testResponse);
+                console.error('13a. Response is null/undefined:', testResponse === null || testResponse === undefined);
+                console.error('13b. Response type:', typeof testResponse);
+                console.error('13c. Response success property:', testResponse?.success);
                 alert('Content script is not responding properly. Please refresh the TikTok page and try again.');
                 return;
             }
 
-            console.log('Communication test successful, enabling download mode...');
+            console.log('14. Communication test successful, enabling download mode...');
 
             // Send message to content script to enable download mode
+            console.log('15. Sending enableDownloadMode message...');
+            const downloadOptions = {
+                watermark: watermarkOption.checked,
+                audio: audioOption.checked,
+                quality: downloadQuality.value
+            };
+            console.log('15a. Download options:', downloadOptions);
+            
             const response = await chrome.tabs.sendMessage(tab.id, {
                 action: 'enableDownloadMode',
-                options: {
-                    watermark: watermarkOption.checked,
-                    audio: audioOption.checked,
-                    quality: downloadQuality.value
-                }
+                options: downloadOptions
             });
 
-            console.log('Enable download mode response:', response);
+            console.log('16. Enable download mode response:', response);
 
             if (response && response.success) {
+                console.log('17. Download mode enabled successfully');
                 enableDownloadBtn.textContent = 'Download Mode Active';
                 enableDownloadBtn.classList.add('btn-success');
                 alert('Download mode enabled! Download buttons will appear on TikTok posts.\n\nIf you don\'t see download buttons, try scrolling down or refreshing the page.');
             } else {
+                console.error('18. Failed to enable download mode');
                 const errorMsg = response?.error || 'Unknown error';
-                console.error('Failed to enable download mode:', errorMsg);
+                console.error('18a. Error message:', errorMsg);
                 alert(`Failed to enable download mode: ${errorMsg}\n\nPlease refresh the TikTok page and try again.`);
             }
+            
+            console.log('=== DOWNLOAD MODE DEBUG END ===');
+            
         } catch (error) {
+            console.error('=== DOWNLOAD MODE ERROR ===');
             console.error('Error enabling download mode:', error);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
             
             if (error.message.includes('Could not establish connection')) {
                 alert('Cannot connect to TikTok page. Please:\n1. Make sure you\'re on a TikTok page\n2. Refresh the page\n3. Try again');
             } else {
                 alert(`Error enabling download mode: ${error.message}\n\nPlease try again or refresh the page.`);
             }
+            
+            console.error('=== DOWNLOAD MODE ERROR END ===');
         }
     }
 

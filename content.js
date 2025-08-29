@@ -28,25 +28,36 @@
     initialize();
 
     function initialize() {
+        console.log('=== CONTENT SCRIPT INITIALIZATION START ===');
         console.log('TikTok Full Extension: Content script initialized');
+        console.log('Current URL:', window.location.href);
+        console.log('Document ready state:', document.readyState);
+        console.log('Window loaded:', window.loaded);
         
         // Listen for messages from popup
+        console.log('Setting up message listener...');
         chrome.runtime.onMessage.addListener(handleMessage);
+        console.log('Message listener set up successfully');
         
         // Initial authentication check
+        console.log('Performing initial authentication check...');
         checkAuthentication();
         
         // Set up periodic checks
+        console.log('Setting up periodic authentication checks...');
         setInterval(checkAuthentication, 10000); // Check every 10 seconds
         
         // Listen for page changes
+        console.log('Setting up page change observer...');
         observePageChanges();
         
         // Load saved settings
+        console.log('Loading saved settings...');
         loadSettings();
         
         // Log initialization
         console.log('TikTok Full Extension: Ready to receive messages');
+        console.log('=== CONTENT SCRIPT INITIALIZATION END ===');
     }
 
     function handleMessage(request, sender, sendResponse) {
