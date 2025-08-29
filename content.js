@@ -5,6 +5,16 @@
 (function() {
     'use strict';
 
+    // Prevent multiple instances
+    const SCRIPT_ID = 'tiktok-full-extension-v1';
+    if (window[SCRIPT_ID]) {
+        console.log('TikTok Full Extension: Already initialized, skipping...');
+        return;
+    }
+    
+    window[SCRIPT_ID] = true;
+    console.log('TikTok Full Extension: Starting initialization...');
+
     // Store authentication data
     let authData = {
         authenticated: false,
