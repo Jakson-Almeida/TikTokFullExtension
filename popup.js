@@ -187,6 +187,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            // First, test communication with content script
+            console.log('Testing communication with content script...');
+            let testResponse;
+            try {
+                testResponse = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+                console.log('Ping response:', testResponse);
+            } catch (error) {
+                console.error('Ping failed:', error);
+                alert('Cannot communicate with TikTok page. Please refresh the page and try again.');
+                return;
+            }
+
+            if (!testResponse || !testResponse.success) {
+                alert('Content script is not responding properly. Please refresh the TikTok page and try again.');
+                return;
+            }
+
+            console.log('Communication test successful, enabling download mode...');
+
             // Send message to content script to enable download mode
             const response = await chrome.tabs.sendMessage(tab.id, {
                 action: 'enableDownloadMode',
@@ -197,16 +216,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
+            console.log('Enable download mode response:', response);
+
             if (response && response.success) {
                 enableDownloadBtn.textContent = 'Download Mode Active';
                 enableDownloadBtn.classList.add('btn-success');
-                alert('Download mode enabled! Download buttons will appear on TikTok posts.');
+                alert('Download mode enabled! Download buttons will appear on TikTok posts.\n\nIf you don\'t see download buttons, try scrolling down or refreshing the page.');
             } else {
-                alert('Failed to enable download mode. Please refresh the TikTok page and try again.');
+                const errorMsg = response?.error || 'Unknown error';
+                console.error('Failed to enable download mode:', errorMsg);
+                alert(`Failed to enable download mode: ${errorMsg}\n\nPlease refresh the TikTok page and try again.`);
             }
         } catch (error) {
             console.error('Error enabling download mode:', error);
-            alert('Error enabling download mode. Please try again.');
+            
+            if (error.message.includes('Could not establish connection')) {
+                alert('Cannot connect to TikTok page. Please:\n1. Make sure you\'re on a TikTok page\n2. Refresh the page\n3. Try again');
+            } else {
+                alert(`Error enabling download mode: ${error.message}\n\nPlease try again or refresh the page.`);
+            }
         }
     }
 

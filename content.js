@@ -28,6 +28,8 @@
     initialize();
 
     function initialize() {
+        console.log('TikTok Full Extension: Content script initialized');
+        
         // Listen for messages from popup
         chrome.runtime.onMessage.addListener(handleMessage);
         
@@ -42,49 +44,84 @@
         
         // Load saved settings
         loadSettings();
+        
+        // Log initialization
+        console.log('TikTok Full Extension: Ready to receive messages');
     }
 
     function handleMessage(request, sender, sendResponse) {
-        switch (request.action) {
-            case 'checkAuthentication':
-                const result = checkAuthentication();
-                sendResponse({
-                    success: true,
-                    ...result
-                });
-                break;
-                
-            case 'getPageInfo':
-                const info = getPageInfo();
-                sendResponse({
-                    success: true,
-                    ...info
-                });
-                break;
-                
-            case 'enableDownloadMode':
-                downloadMode.enabled = true;
-                downloadMode.options = request.options || downloadMode.options;
-                saveSettings();
-                injectDownloadButtons();
-                sendResponse({
-                    success: true,
-                    message: 'Download mode enabled'
-                });
-                break;
-                
-            case 'disableDownloadMode':
-                downloadMode.enabled = false;
-                saveSettings();
-                removeDownloadButtons();
-                sendResponse({
-                    success: true,
-                    message: 'Download mode disabled'
-                });
-                break;
-                
-            default:
-                sendResponse({ success: false, error: 'Unknown action' });
+        console.log('TikTok Full Extension: Received message:', request);
+        
+        try {
+            switch (request.action) {
+                case 'checkAuthentication':
+                    const result = checkAuthentication();
+                    console.log('TikTok Full Extension: Authentication result:', result);
+                    sendResponse({
+                        success: true,
+                        ...result
+                    });
+                    break;
+                    
+                case 'getPageInfo':
+                    const info = getPageInfo();
+                    console.log('TikTok Full Extension: Page info:', info);
+                    sendResponse({
+                        success: true,
+                        ...info
+                    });
+                    break;
+                    
+                case 'enableDownloadMode':
+                    console.log('TikTok Full Extension: Enabling download mode with options:', request.options);
+                    downloadMode.enabled = true;
+                    downloadMode.options = request.options || downloadMode.options;
+                    saveSettings();
+                    
+                    // Inject download buttons after a short delay to ensure page is ready
+                    setTimeout(() => {
+                        injectDownloadButtons();
+                        console.log('TikTok Full Extension: Download buttons injected');
+                    }, 1000);
+                    
+                    sendResponse({
+                        success: true,
+                        message: 'Download mode enabled successfully'
+                    });
+                    break;
+                    
+                case 'disableDownloadMode':
+                    console.log('TikTok Full Extension: Disabling download mode');
+                    downloadMode.enabled = false;
+                    saveSettings();
+                    removeDownloadButtons();
+                    sendResponse({
+                        success: true,
+                        message: 'Download mode disabled successfully'
+                    });
+                    break;
+                    
+                case 'ping':
+                    // Simple ping to test communication
+                    sendResponse({
+                        success: true,
+                        message: 'Content script is alive and responding'
+                    });
+                    break;
+                    
+                default:
+                    console.log('TikTok Full Extension: Unknown action:', request.action);
+                    sendResponse({ 
+                        success: false, 
+                        error: 'Unknown action: ' + request.action 
+                    });
+            }
+        } catch (error) {
+            console.error('TikTok Full Extension: Error handling message:', error);
+            sendResponse({ 
+                success: false, 
+                error: 'Error processing request: ' + error.message 
+            });
         }
         
         return true; // Keep message channel open for async response
@@ -347,16 +384,50 @@
 
     // Download functionality
     function injectDownloadButtons() {
-        if (!downloadMode.enabled) return;
+        if (!downloadMode.enabled) {
+            console.log('TikTok Full Extension: Download mode not enabled, skipping button injection');
+            return;
+        }
         
-        // Find all TikTok posts/videos
-        const posts = document.querySelectorAll('[data-e2e="feed-item"], [data-e2e="video-item"], .video-item, .feed-item');
+        console.log('TikTok Full Extension: Injecting download buttons...');
         
-        posts.forEach(post => {
+        // Find all TikTok posts/videos - try multiple selectors
+        const selectors = [
+            '[data-e2e="feed-item"]',
+            '[data-e2e="video-item"]',
+            '.video-item',
+            '.feed-item',
+            '[data-e2e="browse-item"]',
+            '.browse-item',
+            '[data-e2e="video-feed-item"]',
+            '.video-feed-item'
+        ];
+        
+        let posts = [];
+        for (let selector of selectors) {
+            const found = document.querySelectorAll(selector);
+            if (found.length > 0) {
+                posts = found;
+                console.log(`TikTok Full Extension: Found ${posts.length} posts using selector: ${selector}`);
+                break;
+            }
+        }
+        
+        if (posts.length === 0) {
+            console.log('TikTok Full Extension: No posts found, trying alternative approach...');
+            // Try to find any video containers
+            posts = document.querySelectorAll('div[class*="video"], div[class*="feed"], div[class*="post"]');
+            console.log(`TikTok Full Extension: Found ${posts.length} potential posts using alternative selectors`);
+        }
+        
+        posts.forEach((post, index) => {
             if (!post.hasAttribute('data-tiktok-download-injected')) {
+                console.log(`TikTok Full Extension: Injecting download button into post ${index + 1}`);
                 injectDownloadButton(post);
             }
         });
+        
+        console.log(`TikTok Full Extension: Download button injection complete. Total posts processed: ${posts.length}`);
     }
 
     function injectDownloadButton(post) {
@@ -412,6 +483,8 @@
             post.appendChild(downloadBtn);
             post.setAttribute('data-tiktok-download-injected', 'true');
             
+            console.log('TikTok Full Extension: Download button successfully injected');
+            
         } catch (error) {
             console.error('Error injecting download button:', error);
         }
@@ -423,6 +496,8 @@
         
         const posts = document.querySelectorAll('[data-tiktok-download-injected]');
         posts.forEach(post => post.removeAttribute('data-tiktok-download-injected'));
+        
+        console.log('TikTok Full Extension: Download buttons removed');
     }
 
     async function handleDownloadClick(post) {
@@ -472,15 +547,23 @@
         try {
             // Try to find video element
             const video = post.querySelector('video');
-            if (!video) return null;
+            if (!video) {
+                console.log('TikTok Full Extension: No video element found in post');
+                return null;
+            }
             
             // Get video source
             const videoSrc = video.src || video.currentSrc;
-            if (!videoSrc) return null;
+            if (!videoSrc) {
+                console.log('TikTok Full Extension: No video source found');
+                return null;
+            }
             
             // Try to get additional info
             const title = post.querySelector('[data-e2e="video-title"], .video-title, .title')?.textContent || 'TikTok Video';
             const username = post.querySelector('[data-e2e="username"], .username, .user-name')?.textContent || 'Unknown User';
+            
+            console.log('TikTok Full Extension: Extracted video info:', { src: videoSrc, title, username });
             
             return {
                 src: videoSrc,
@@ -496,11 +579,11 @@
 
     async function downloadVideo(videoInfo) {
         try {
+            console.log('TikTok Full Extension: Attempting to download video:', videoInfo);
+            
             // For now, we'll use a simple approach
             // In a real implementation, you'd need to handle the actual video download
             // This is a placeholder that shows the download would work
-            
-            console.log('Downloading video:', videoInfo);
             
             // Create a temporary link to trigger download
             const link = document.createElement('a');
@@ -516,6 +599,7 @@
             // Note: This approach has limitations due to CORS and TikTok's security
             // A real implementation would need to handle the video data properly
             
+            console.log('TikTok Full Extension: Download initiated successfully');
             return true;
         } catch (error) {
             console.error('Error downloading video:', error);
@@ -528,6 +612,7 @@
             const result = await chrome.storage.local.get(['downloadMode']);
             if (result.downloadMode) {
                 downloadMode = result.downloadMode;
+                console.log('TikTok Full Extension: Loaded settings:', downloadMode);
                 if (downloadMode.enabled) {
                     setTimeout(injectDownloadButtons, 2000); // Wait for page to load
                 }
@@ -540,6 +625,7 @@
     async function saveSettings() {
         try {
             await chrome.storage.local.set({ downloadMode });
+            console.log('TikTok Full Extension: Settings saved:', downloadMode);
         } catch (error) {
             console.error('Error saving settings:', error);
         }
@@ -554,5 +640,8 @@
         injectDownloadButtons,
         removeDownloadButtons
     };
+
+    // Log successful initialization
+    console.log('TikTok Full Extension: Content script fully initialized and ready');
 
 })();
