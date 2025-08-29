@@ -588,109 +588,395 @@
 
     async function handleDownloadClick(post) {
         try {
+            console.log('🔍 === DOWNLOAD CLICK DEBUG START ===');
+            console.log('🔍 Post element:', post);
+            console.log('🔍 Post classes:', post.className);
+            console.log('🔍 Post attributes:', Array.from(post.attributes).map(attr => `${attr.name}="${attr.value}"`));
+            
             // Show loading state
             const downloadBtn = post.querySelector('.tiktok-download-btn');
             const originalContent = downloadBtn.innerHTML;
             downloadBtn.innerHTML = '⏳';
             downloadBtn.style.background = 'rgba(255, 193, 7, 0.9)';
             
-            // Extract video information
-            const videoInfo = extractVideoInfo(post);
+            // Extract video information with multiple methods
+            const videoInfo = await extractVideoInfoAdvanced(post);
             
             if (!videoInfo) {
-                alert('Could not extract video information. Please try again.');
-                downloadBtn.innerHTML = originalContent;
-                downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
-                return;
-            }
-            
-            // Attempt to download
-            const success = await downloadVideo(videoInfo);
-            
-            if (success) {
-                downloadBtn.innerHTML = '✅';
-                downloadBtn.style.background = 'rgba(40, 167, 69, 0.9)';
-                setTimeout(() => {
-                    downloadBtn.innerHTML = originalContent;
-                    downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
-                }, 2000);
-            } else {
+                console.error('🔍 Failed to extract video information');
                 downloadBtn.innerHTML = '❌';
                 downloadBtn.style.background = 'rgba(220, 53, 69, 0.9)';
                 setTimeout(() => {
                     downloadBtn.innerHTML = originalContent;
                     downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
                 }, 2000);
+                
+                // Show better error message
+                showDownloadError('Could not extract video information. Please try again.');
+                return;
             }
             
+            console.log('🔍 Video info extracted successfully:', videoInfo);
+            
+            // Attempt to download with multiple methods
+            const downloadResult = await downloadVideoAdvanced(videoInfo, post);
+            
+            if (downloadResult.success) {
+                console.log('🔍 Download successful:', downloadResult);
+                downloadBtn.innerHTML = '✅';
+                downloadBtn.style.background = 'rgba(40, 167, 69, 0.9)';
+                setTimeout(() => {
+                    downloadBtn.innerHTML = originalContent;
+                    downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+                }, 2000);
+                
+                // Show success message
+                showDownloadSuccess('Download initiated successfully!');
+            } else {
+                console.error('🔍 Download failed:', downloadResult.error);
+                downloadBtn.innerHTML = '❌';
+                downloadBtn.style.background = 'rgba(220, 53, 69, 0.9)';
+                setTimeout(() => {
+                    downloadBtn.innerHTML = originalContent;
+                    downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+                }, 2000);
+                
+                // Show error message
+                showDownloadError(`Download failed: ${downloadResult.error}`);
+            }
+            
+            console.log('🔍 === DOWNLOAD CLICK DEBUG END ===');
+            
         } catch (error) {
-            console.error('Error handling download:', error);
-            alert('Download failed. Please try again.');
+            console.error('🔍 Error handling download:', error);
+            const downloadBtn = post.querySelector('.tiktok-download-btn');
+            const originalContent = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '❌';
+            downloadBtn.style.background = 'rgba(220, 53, 69, 0.9)';
+            setTimeout(() => {
+                downloadBtn.innerHTML = originalContent;
+                downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+            }, 2000);
+            
+            showDownloadError('Download failed. Please try again.');
         }
     }
 
-    function extractVideoInfo(post) {
+    async function extractVideoInfoAdvanced(post) {
+        console.log('🔍 === EXTRACT VIDEO INFO DEBUG START ===');
+        
         try {
-            // Try to find video element
-            const video = post.querySelector('video');
+            // Method 1: Try to find video element directly
+            let video = post.querySelector('video');
+            console.log('🔍 Method 1 - Direct video element:', video);
+            
             if (!video) {
-                console.log('TikTok Full Extension: No video element found in post');
+                // Method 2: Look for video in parent containers
+                video = post.closest('[data-e2e*="video"], [class*="video"], [class*="feed"]')?.querySelector('video');
+                console.log('🔍 Method 2 - Video in parent containers:', video);
+            }
+            
+            if (!video) {
+                // Method 3: Look for any video element in the post tree
+                const videoContainers = post.querySelectorAll('div[class*="video"], div[class*="feed"], div[class*="post"]');
+                console.log('🔍 Method 3 - Video containers found:', videoContainers.length);
+                
+                for (let container of videoContainers) {
+                    video = container.querySelector('video');
+                    if (video) {
+                        console.log('🔍 Found video in container:', container);
+                        break;
+                    }
+                }
+            }
+            
+            if (!video) {
+                console.log('🔍 No video element found with any method');
                 return null;
             }
             
-            // Get video source
-            const videoSrc = video.src || video.currentSrc;
+            console.log('🔍 Video element found:', video);
+            console.log('🔍 Video src:', video.src);
+            console.log('🔍 Video currentSrc:', video.currentSrc);
+            console.log('🔍 Video data-src:', video.dataset.src);
+            
+            // Get video source with multiple fallbacks
+            let videoSrc = video.src || video.currentSrc || video.dataset.src;
+            
             if (!videoSrc) {
-                console.log('TikTok Full Extension: No video source found');
+                // Method 4: Try to get source from source elements
+                const source = video.querySelector('source');
+                if (source) {
+                    videoSrc = source.src || source.dataset.src;
+                    console.log('🔍 Video source from source element:', videoSrc);
+                }
+            }
+            
+            if (!videoSrc) {
+                // Method 5: Try to get from data attributes
+                const videoContainer = video.closest('div[data-src], div[data-video-src]');
+                if (videoContainer) {
+                    videoSrc = videoContainer.dataset.src || videoContainer.dataset.videoSrc;
+                    console.log('🔍 Video source from container data:', videoSrc);
+                }
+            }
+            
+            if (!videoSrc) {
+                console.log('🔍 No video source found with any method');
                 return null;
             }
             
-            // Try to get additional info
-            const title = post.querySelector('[data-e2e="video-title"], .video-title, .title')?.textContent || 'TikTok Video';
-            const username = post.querySelector('[data-e2e="username"], .username, .user-name')?.textContent || 'Unknown User';
+            // Extract additional information
+            const title = extractVideoTitle(post);
+            const username = extractVideoUsername(post);
+            const videoId = extractVideoId(post);
             
-            console.log('TikTok Full Extension: Extracted video info:', { src: videoSrc, title, username });
-            
-            return {
+            const videoInfo = {
                 src: videoSrc,
-                title: title.trim(),
-                username: username.trim(),
-                timestamp: Date.now()
+                title: title || 'TikTok Video',
+                username: username || 'Unknown User',
+                videoId: videoId || Date.now().toString(),
+                timestamp: Date.now(),
+                postElement: post
             };
+            
+            console.log('🔍 Final video info:', videoInfo);
+            console.log('🔍 === EXTRACT VIDEO INFO DEBUG END ===');
+            
+            return videoInfo;
+            
         } catch (error) {
-            console.error('Error extracting video info:', error);
+            console.error('🔍 Error extracting video info:', error);
             return null;
         }
     }
 
-    async function downloadVideo(videoInfo) {
-        try {
-            console.log('TikTok Full Extension: Attempting to download video:', videoInfo);
-            
-            // For now, we'll use a simple approach
-            // In a real implementation, you'd need to handle the actual video download
-            // This is a placeholder that shows the download would work
-            
-            // Create a temporary link to trigger download
-            const link = document.createElement('a');
-            link.href = videoInfo.src;
-            link.download = `tiktok_${videoInfo.username}_${videoInfo.timestamp}.mp4`;
-            link.target = '_blank';
-            
-            // Add to DOM temporarily
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // Note: This approach has limitations due to CORS and TikTok's security
-            // A real implementation would need to handle the video data properly
-            
-            console.log('TikTok Full Extension: Download initiated successfully');
-            return true;
-        } catch (error) {
-            console.error('Error downloading video:', error);
-            return false;
+    function extractVideoTitle(post) {
+        const selectors = [
+            '[data-e2e="video-title"]',
+            '.video-title',
+            '.title',
+            '[data-e2e="browse-item-title"]',
+            '[class*="title"]',
+            'h3',
+            'h4'
+        ];
+        
+        for (let selector of selectors) {
+            const element = post.querySelector(selector);
+            if (element && element.textContent.trim()) {
+                return element.textContent.trim();
+            }
         }
+        
+        return null;
+    }
+
+    function extractVideoUsername(post) {
+        const selectors = [
+            '[data-e2e="username"]',
+            '.username',
+            '.user-name',
+            '[data-e2e="browse-item-user"]',
+            '[class*="username"]',
+            '[class*="user"]',
+            'a[href*="/@"]'
+        ];
+        
+        for (let selector of selectors) {
+            const element = post.querySelector(selector);
+            if (element && element.textContent.trim()) {
+                return element.textContent.trim();
+            }
+        }
+        
+        return null;
+    }
+
+    function extractVideoId(post) {
+        // Try to extract video ID from various sources
+        const videoIdSelectors = [
+            '[data-e2e="video-item"]',
+            '[data-video-id]',
+            '[data-id]'
+        ];
+        
+        for (let selector of videoIdSelectors) {
+            const element = post.querySelector(selector);
+            if (element) {
+                const id = element.dataset.videoId || element.dataset.id || element.getAttribute('data-video-id') || element.getAttribute('data-id');
+                if (id) return id;
+            }
+        }
+        
+        return null;
+    }
+
+    async function downloadVideoAdvanced(videoInfo, post) {
+        console.log('🔍 === DOWNLOAD VIDEO ADVANCED DEBUG START ===');
+        console.log('🔍 Attempting download with video info:', videoInfo);
+        
+        try {
+            // Method 1: Try to open video in new tab (most reliable)
+            try {
+                console.log('🔍 Method 1: Opening video in new tab');
+                const newTab = window.open(videoInfo.src, '_blank');
+                if (newTab) {
+                    console.log('🔍 Successfully opened video in new tab');
+                    return { success: true, method: 'new_tab', message: 'Video opened in new tab' };
+                }
+            } catch (error) {
+                console.log('🔍 Method 1 failed:', error);
+            }
+            
+            // Method 2: Try to trigger download with chrome.downloads API
+            try {
+                console.log('🔍 Method 2: Using chrome.downloads API');
+                const filename = `tiktok_${videoInfo.username}_${videoInfo.videoId}.mp4`;
+                
+                // Send message to background script to handle download
+                const response = await chrome.runtime.sendMessage({
+                    action: 'downloadVideo',
+                    data: {
+                        url: videoInfo.src,
+                        filename: filename
+                    }
+                });
+                
+                if (response && response.success) {
+                    console.log('🔍 Chrome downloads API successful');
+                    return { success: true, method: 'chrome_downloads', message: 'Download started via Chrome' };
+                } else {
+                    console.log('🔍 Chrome downloads API failed:', response);
+                }
+            } catch (error) {
+                console.log('🔍 Method 2 failed:', error);
+            }
+            
+            // Method 3: Try to create download link (fallback)
+            try {
+                console.log('🔍 Method 3: Creating download link');
+                const link = document.createElement('a');
+                link.href = videoInfo.src;
+                link.download = `tiktok_${videoInfo.username}_${videoInfo.videoId}.mp4`;
+                link.target = '_blank';
+                
+                // Add to DOM temporarily
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log('🔍 Download link created successfully');
+                return { success: true, method: 'download_link', message: 'Download link created' };
+            } catch (error) {
+                console.log('🔍 Method 3 failed:', error);
+            }
+            
+            // Method 4: Try to copy video URL to clipboard
+            try {
+                console.log('🔍 Method 4: Copying video URL to clipboard');
+                await navigator.clipboard.writeText(videoInfo.src);
+                console.log('🔍 Video URL copied to clipboard');
+                return { success: true, method: 'clipboard', message: 'Video URL copied to clipboard' };
+            } catch (error) {
+                console.log('🔍 Method 4 failed:', error);
+            }
+            
+            console.log('🔍 All download methods failed');
+            return { success: false, error: 'All download methods failed' };
+            
+        } catch (error) {
+            console.error('🔍 Error in downloadVideoAdvanced:', error);
+            return { success: false, error: error.message };
+        } finally {
+            console.log('🔍 === DOWNLOAD VIDEO ADVANCED DEBUG END ===');
+        }
+    }
+
+    function showDownloadError(message) {
+        // Create a better error modal
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            max-width: 300px;
+            text-align: center;
+            border: 2px solid #dc3545;
+        `;
+        
+        modal.innerHTML = `
+            <div style="color: #dc3545; font-size: 24px; margin-bottom: 10px;">❌</div>
+            <div style="color: #333; font-weight: 500; margin-bottom: 15px;">Download Error</div>
+            <div style="color: #666; margin-bottom: 20px; line-height: 1.4;">${message}</div>
+            <button onclick="this.parentElement.remove()" style="
+                background: #dc3545;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 500;
+            ">OK</button>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (modal.parentElement) {
+                modal.remove();
+            }
+        }, 5000);
+    }
+
+    function showDownloadSuccess(message) {
+        // Create a success modal
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            max-width: 300px;
+            text-align: center;
+            border: 2px solid #28a745;
+        `;
+        
+        modal.innerHTML = `
+            <div style="color: #28a745; font-size: 24px; margin-bottom: 10px;">✅</div>
+            <div style="color: #333; font-weight: 500; margin-bottom: 15px;">Download Success</div>
+            <div style="color: #666; margin-bottom: 20px; line-height: 1.4;">${message}</div>
+            <button onclick="this.parentElement.remove()" style="
+                background: #28a745;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 500;
+            ">OK</button>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (modal.parentElement) {
+                modal.remove();
+            }
+        }, 3000);
     }
 
     async function loadSettings() {

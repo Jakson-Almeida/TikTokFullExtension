@@ -74,6 +74,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
             break;
             
+        case 'downloadVideo':
+            // Handle video download using chrome.downloads API
+            try {
+                const { url, filename } = request.data;
+                console.log('Background: Downloading video:', { url, filename });
+                
+                chrome.downloads.download({
+                    url: url,
+                    filename: filename,
+                    saveAs: true // Show file picker
+                }, (downloadId) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('Download error:', chrome.runtime.lastError);
+                        sendResponse({
+                            success: false,
+                            error: chrome.runtime.lastError.message || 'Download failed'
+                        });
+                    } else {
+                        console.log('Download started with ID:', downloadId);
+                        sendResponse({
+                            success: true,
+                            downloadId: downloadId,
+                            message: 'Download started successfully'
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error('Download error:', error);
+                sendResponse({
+                    success: false,
+                    error: error.message || 'Download failed'
+                });
+            }
+            break;
+            
         default:
             sendResponse({
                 success: false,
