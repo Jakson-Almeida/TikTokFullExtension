@@ -594,54 +594,40 @@
             return null;
         }
 
-        // Known TikTok CDN patterns and regions
-        const cdnPatterns = [
-            // Maliva region (working pattern from example)
-            `https://v16-webapp-prime.tiktok.com/video/tos/maliva/tos-maliva-ve-0068c799-us/${videoId}/`,
-            `https://v19-webapp-prime.tiktok.com/video/tos/maliva/tos-maliva-ve-0068c799-us/${videoId}/`,
-            
-            // Useast regions
-            `https://v16-webapp-prime.tiktok.com/video/tos/useast1/tos-useast1-ve-0068c799-us/${videoId}/`,
-            `https://v19-webapp-prime.tiktok.com/video/tos/useast1/tos-useast1-ve-0068c799-us/${videoId}/`,
-            
-            // Useast5 region (from example)
-            `https://v16-webapp-prime.tiktok.com/video/tos/useast5/tos-useast5-ve-0068c799-us/${videoId}/`,
-            `https://v19-webapp-prime.tiktok.com/video/tos/useast5/tos-useast5-ve-0068c799-us/${videoId}/`,
-            
-            // Uswest regions
-            `https://v16-webapp-prime.tiktok.com/video/tos/uswest1/tos-uswest1-ve-0068c799-us/${videoId}/`,
-            `https://v19-webapp-prime.tiktok.com/video/tos/uswest1/tos-uswest1-ve-0068c799-us/${videoId}/`,
-            
-            // Europe regions
-            `https://v16-webapp-prime.tiktok.com/video/tos/europe/tos-europe-ve-0068c799-us/${videoId}/`,
-            `https://v19-webapp-prime.tiktok.com/video/tos/europe/tos-europe-ve-0068c799-us/${videoId}/`,
-            
-            // Asia regions
-            `https://v16-webapp-prime.tiktok.com/video/tos/asia/tos-asia-ve-0068c799-us/${videoId}/`,
-            `https://v19-webapp-prime.tiktok.com/video/tos/asia/tos-asia-ve-0068c799-us/${videoId}/`,
-            
-            // Global regions
-            `https://v16-webapp-prime.tiktok.com/video/tos/global/tos-global-ve-0068c799-us/${videoId}/`,
-            `https://v19-webapp-prime.tiktok.com/video/tos/global/tos-global-ve-0068c799-us/${videoId}/`,
-            
-            // Alternative patterns
-            `https://v16-webapp-prime.tiktok.com/video/tos/any/tos-any-ve-0068c799-us/${videoId}/`,
-            `https://v19-webapp-prime.tiktok.com/video/tos/any/tos-any-ve-0068c799-us/${videoId}/`,
-            
-            // Direct API URLs
-            `https://www.tiktok.com/aweme/v1/play/?item_id=${videoId}&line=0&ply_type=2`,
-            `https://www.tiktok.com/api/item/detail/?itemId=${videoId}`,
-            
-            // Legacy patterns
-            `https://v16-webapp.tiktok.com/video/${videoId}/`,
-            `https://v19-webapp.tiktok.com/video/${videoId}/`
-        ];
+        // Instead of constructing CDN URLs that get blocked, try to find working patterns
+        // from existing videos on the page
+        console.log('Looking for working video URL patterns on the page...');
+        
+        try {
+            // Find all video elements on the page that have working sources
+            const allVideos = document.querySelectorAll('video source');
+            for (let source of allVideos) {
+                const src = source.src;
+                if (src && !src.startsWith('blob:') && src.includes('tiktok.com') && src.includes('/video/')) {
+                    console.log('Found working video URL pattern:', src);
+                    
+                    // Extract the base pattern and try to apply it to our video ID
+                    const urlParts = src.split('/');
+                    if (urlParts.length > 2) {
+                        // Remove the last part (which is usually a hash or specific video ID)
+                        const basePattern = urlParts.slice(0, -1).join('/') + '/';
+                        const newUrl = basePattern + videoId + '/';
+                        console.log('Constructed URL using working pattern:', newUrl);
+                        return newUrl;
+                    }
+                }
+            }
+        } catch (error) {
+            console.log('Error looking for working patterns:', error);
+        }
 
-        console.log('Testing', cdnPatterns.length, 'CDN patterns...');
-
-        // For now, return the first maliva pattern as it seems to work
-        // In the future, we could test each pattern to find the best one
-        return `https://v16-webapp-prime.tiktok.com/video/tos/maliva/tos-maliva-ve-0068c799-us/${videoId}/`;
+        // If no working pattern found, try some safer alternatives
+        console.log('No working pattern found, trying safer alternatives...');
+        
+        // Try the main TikTok page URL as a fallback
+        const mainPageUrl = `https://www.tiktok.com/@user/video/${videoId}`;
+        console.log('Using main page URL as fallback:', mainPageUrl);
+        return mainPageUrl;
     }
 
     async function handleDownloadClick(post) {
@@ -699,8 +685,12 @@
                     downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
                 }, 2000);
                 
-                // Show error message
-                showDownloadError(`Download failed: ${downloadResult.error}`);
+                            // Show error message with better guidance for CDN issues
+            let errorMessage = `Download failed: ${downloadResult.error}`;
+            if (videoInfo.src && videoInfo.src.includes('(CDN_URL)')) {
+                errorMessage = 'This video uses a CDN URL that may be blocked. Try:\n1. Opening the post in a new tab\n2. Waiting a few minutes and trying again\n3. Using a different video';
+            }
+            showDownloadError(errorMessage);
             }
             
             console.log('🔍 === DOWNLOAD CLICK DEBUG END ===');
@@ -940,6 +930,43 @@
             }
         }
 
+        // Method 15: Try to find working video URLs from other posts on the page
+        if (!videoSrc) {
+            console.log('Method 15: Looking for working video URLs from other posts');
+            try {
+                // Find all video elements on the page that have working sources
+                const allVideos = document.querySelectorAll('video source');
+                for (let source of allVideos) {
+                    const src = source.src;
+                    if (src && !src.startsWith('blob:') && src.includes('tiktok.com') && src.includes('/video/')) {
+                        console.log('Method 15: Found working video URL from another post:', src);
+                        // Use this as a template to construct our URL
+                        const urlParts = src.split('/');
+                        if (urlParts.length > 2) {
+                            // Extract the base pattern and try to apply it to our video ID
+                            const basePattern = urlParts.slice(0, -1).join('/') + '/';
+                            const newUrl = basePattern + videoId + '/';
+                            console.log('Method 15: Constructed URL using working pattern:', newUrl);
+                            videoSrc = newUrl;
+                            break;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Method 15: Error looking for working patterns:', error);
+            }
+        }
+
+        // Method 16: Try to use the post's direct link as a fallback
+        if (!videoSrc) {
+            console.log('Method 16: Using post link as fallback');
+            const postLink = postElement.querySelector('a[href*="/video/"]');
+            if (postLink && postLink.href) {
+                console.log('Method 16: Using post link:', postLink.href);
+                videoSrc = postLink.href;
+            }
+        }
+
         // Method 14: Final fallback - search for any TikTok video URL in the entire page
         if (!videoSrc) {
             console.log('Method 14: Final fallback - searching entire page');
@@ -957,10 +984,17 @@
             }
         }
 
-        // Final validation - ensure we don't have a blob URL
-        if (videoSrc && videoSrc.startsWith('blob:')) {
-            console.log('WARNING: Found blob URL, resetting to null');
-            videoSrc = null;
+        // Final validation - ensure we don't have a blob URL or blocked CDN URLs
+        if (videoSrc) {
+            if (videoSrc.startsWith('blob:')) {
+                console.log('WARNING: Found blob URL, resetting to null');
+                videoSrc = null;
+            } else if (videoSrc.includes('v16-webapp-prime.tiktok.com') || videoSrc.includes('v19-webapp-prime.tiktok.com')) {
+                // Check if this is a CDN URL that might get blocked
+                console.log('WARNING: Found CDN URL that might get blocked:', videoSrc);
+                // Don't reset it yet, but mark it for special handling
+                videoSrc = videoSrc + ' (CDN_URL)';
+            }
         }
 
         // Extract additional information
@@ -1184,6 +1218,22 @@
                 return { success: true, method: 'clipboard', message: 'Video URL copied to clipboard' };
             } catch (error) {
                 console.log('🔍 Method 4 failed:', error);
+            }
+            
+            // Method 5: Try to use the post's direct TikTok page URL as fallback
+            try {
+                console.log('🔍 Method 5: Using post direct URL as fallback');
+                const postLink = post.querySelector('a[href*="/video/"]');
+                if (postLink && postLink.href) {
+                    console.log('🔍 Opening post page in new tab:', postLink.href);
+                    const newTab = window.open(postLink.href, '_blank');
+                    if (newTab) {
+                        console.log('🔍 Successfully opened post page in new tab');
+                        return { success: true, method: 'post_page', message: 'Post page opened in new tab - you can download from there' };
+                    }
+                }
+            } catch (error) {
+                console.log('🔍 Method 5 failed:', error);
             }
             
             console.log('🔍 All download methods failed');
