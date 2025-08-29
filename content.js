@@ -265,10 +265,63 @@
         // Remove existing buttons first
         removeDownloadButtons();
         
-        // Find TikTok posts/videos
-        const posts = document.querySelectorAll('[data-e2e="search-card"], [data-e2e="video-feed-item"], .video-feed-item, .search-card');
+        // Find TikTok posts/videos with multiple selector strategies
+        let posts = [];
+        
+        // Strategy 1: Look for video containers
+        const videoContainers = document.querySelectorAll('[data-e2e="search-card"], [data-e2e="video-feed-item"], .video-feed-item, .search-card');
+        posts = posts.concat(Array.from(videoContainers));
+        
+        // Strategy 2: Look for TikTok's newer video structure
+        const newerPosts = document.querySelectorAll('[data-e2e="browse-video"], [data-e2e="browse-video-item"], .browse-video, .browse-video-item');
+        posts = posts.concat(Array.from(newerPosts));
+        
+        // Strategy 3: Look for any div containing video elements
+        const videoElements = document.querySelectorAll('video');
+        videoElements.forEach(video => {
+            const container = video.closest('div[data-e2e], div[class*="video"], div[class*="post"], div[class*="card"]');
+            if (container && !posts.includes(container)) {
+                posts.push(container);
+            }
+        });
+        
+        // Strategy 4: Look for common TikTok post patterns
+        const commonPosts = document.querySelectorAll('div[class*="DivItemContainer"], div[class*="DivVideoFeedV2"], div[class*="DivSearchCardContainer"]');
+        posts = posts.concat(Array.from(commonPosts));
+        
+        // Strategy 5: Look for any div that might contain TikTok content
+        const potentialPosts = document.querySelectorAll('div[class*="tiktok"], div[class*="video"], div[class*="post"], div[class*="card"]');
+        potentialPosts.forEach(div => {
+            if (div.querySelector('video, img[src*="tiktok"], a[href*="/video/"]') && !posts.includes(div)) {
+                posts.push(div);
+            }
+        });
+        
+        // Remove duplicates
+        posts = [...new Set(posts)];
         
         console.log('TikTok Full Extension: Found', posts.length, 'posts to inject buttons into');
+        console.log('TikTok Full Extension: Post selectors used:', {
+            videoContainers: videoContainers.length,
+            newerPosts: newerPosts.length,
+            videoElements: videoElements.length,
+            commonPosts: commonPosts.length,
+            potentialPosts: potentialPosts.length,
+            finalPosts: posts.length
+        });
+        
+        // Debug: Log the first few posts to see their structure
+        posts.slice(0, 3).forEach((post, index) => {
+            console.log(`TikTok Full Extension: Post ${index + 1} structure:`, {
+                tagName: post.tagName,
+                className: post.className,
+                id: post.id,
+                dataE2e: post.getAttribute('data-e2e'),
+                hasVideo: !!post.querySelector('video'),
+                hasImg: !!post.querySelector('img'),
+                hasLink: !!post.querySelector('a[href*="/video/"]')
+            });
+        });
         
         posts.forEach((post, index) => {
             try {
@@ -314,6 +367,77 @@
         });
         
         console.log('TikTok Full Extension: Download button injection complete');
+        
+        // If no posts found, try a different approach
+        if (posts.length === 0) {
+            console.log('TikTok Full Extension: No posts found with standard selectors, trying alternative approach...');
+            setTimeout(tryAlternativeInjection, 2000);
+        }
+    }
+
+    function tryAlternativeInjection() {
+        console.log('TikTok Full Extension: Trying alternative injection method...');
+        
+        // Look for any element that might be a TikTok post
+        const allDivs = document.querySelectorAll('div');
+        const potentialPosts = [];
+        
+        allDivs.forEach(div => {
+            // Check if this div looks like it contains TikTok content
+            const hasVideo = div.querySelector('video');
+            const hasTikTokLink = div.querySelector('a[href*="/video/"]');
+            const hasTikTokImage = div.querySelector('img[src*="tiktok"]');
+            const hasReasonableSize = div.offsetWidth > 200 && div.offsetHeight > 200;
+            
+            if ((hasVideo || hasTikTokLink || hasTikTokImage) && hasReasonableSize) {
+                potentialPosts.push(div);
+            }
+        });
+        
+        console.log('TikTok Full Extension: Alternative method found', potentialPosts.length, 'potential posts');
+        
+        if (potentialPosts.length > 0) {
+            // Use the first few potential posts
+            const postsToUse = potentialPosts.slice(0, 5);
+            postsToUse.forEach((post, index) => {
+                try {
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'tiktok-download-btn';
+                    downloadBtn.innerHTML = '⬇️ Download';
+                    downloadBtn.style.cssText = `
+                        position: absolute;
+                        top: 10px;
+                        right: 10px;
+                        background: #fe2c55;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        padding: 8px 12px;
+                        font-size: 12px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        z-index: 1000;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    `;
+                    
+                    downloadBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        downloadVideo(post);
+                    });
+                    
+                    if (getComputedStyle(post).position === 'static') {
+                        post.style.position = 'relative';
+                    }
+                    
+                    post.appendChild(downloadBtn);
+                    console.log('TikTok Full Extension: Alternative method added button to post', index + 1);
+                    
+                } catch (error) {
+                    console.error('TikTok Full Extension: Error with alternative injection for post', index + 1, error);
+                }
+            });
+        }
     }
 
     function removeDownloadButtons() {
@@ -406,6 +530,73 @@
             }, 1000);
         }
     }, 15000);
+
+    // Additional injection attempts with different timing strategies
+    function setupInjectionRetries() {
+        // Try injection multiple times with different delays
+        const delays = [1000, 3000, 5000, 8000, 12000];
+        
+        delays.forEach((delay, index) => {
+            setTimeout(() => {
+                if (downloadMode.enabled) {
+                    console.log(`TikTok Full Extension: Retry injection attempt ${index + 1} after ${delay}ms`);
+                    injectDownloadButtons();
+                }
+            }, delay);
+        });
+    }
+
+    // Set up retry mechanism when page loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('TikTok Full Extension: DOM loaded, setting up injection retries');
+            setTimeout(setupInjectionRetries, 1000);
+        });
+    } else {
+        console.log('TikTok Full Extension: DOM already loaded, setting up injection retries');
+        setTimeout(setupInjectionRetries, 1000);
+    }
+
+    // Also try injection when the page is fully loaded
+    window.addEventListener('load', () => {
+        console.log('TikTok Full Extension: Page fully loaded, attempting injection');
+        setTimeout(() => {
+            if (downloadMode.enabled) {
+                injectDownloadButtons();
+            }
+        }, 2000);
+    });
+
+    // Listen for dynamic content changes (TikTok loads content dynamically)
+    const observer = new MutationObserver((mutations) => {
+        if (downloadMode.enabled) {
+            let shouldInject = false;
+            
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    // Check if new nodes contain video content
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            if (node.querySelector && (node.querySelector('video') || node.querySelector('a[href*="/video/"]'))) {
+                                shouldInject = true;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            if (shouldInject) {
+                console.log('TikTok Full Extension: Dynamic content detected, re-injecting buttons');
+                setTimeout(injectDownloadButtons, 1000);
+            }
+        }
+    });
+
+    // Start observing for dynamic content
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
 
     // Expose functions for debugging
     window.tikTokExtension = {
