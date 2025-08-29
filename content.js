@@ -1609,10 +1609,6 @@
     console.log('🔍 Window object keys:', Object.keys(window).filter(key => key.includes('tiktok')));
 }
 
-console.log('🔍 === IIFE EXECUTION END ===');
-console.log('🔍 IIFE completed at:', new Date().toISOString());
+// Move these functions outside the main function scope
+async function loadSettings() {
 
-})();
-
-console.log('🔍 === CONTENT SCRIPT LOADING DEBUG END ===');
-console.log('🔍 Content script file completed loading at:', new Date().toISOString());
