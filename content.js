@@ -89,6 +89,7 @@
                     break;
                     
                 case 'getPageInfo':
+                    console.log('TikTok Full Extension: Processing getPageInfo');
                     const info = getPageInfo();
                     console.log('TikTok Full Extension: Page info:', info);
                     sendResponse({
@@ -98,6 +99,7 @@
                     break;
                     
                 case 'enableDownloadMode':
+                    console.log('TikTok Full Extension: Processing enableDownloadMode');
                     console.log('TikTok Full Extension: Enabling download mode with options:', request.options);
                     downloadMode.enabled = true;
                     downloadMode.options = request.options || downloadMode.options;
@@ -116,6 +118,7 @@
                     break;
                     
                 case 'disableDownloadMode':
+                    console.log('TikTok Full Extension: Processing disableDownloadMode');
                     console.log('TikTok Full Extension: Disabling download mode');
                     downloadMode.enabled = false;
                     saveSettings();
