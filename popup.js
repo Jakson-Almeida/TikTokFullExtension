@@ -7,6 +7,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const username = document.getElementById('username');
     const refreshBtn = document.getElementById('refreshBtn');
     const checkPageBtn = document.getElementById('checkPageBtn');
+    
+    // Tab elements
+    const menuTabs = document.querySelectorAll('.menu-tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    // Download tool elements
+    const enableDownloadBtn = document.getElementById('enableDownloadBtn');
+    const downloadSettingsBtn = document.getElementById('downloadSettingsBtn');
+    const watermarkOption = document.getElementById('watermarkOption');
+    const audioOption = document.getElementById('audioOption');
+    
+    // Settings elements
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+    const autoCheckAuth = document.getElementById('autoCheckAuth');
+    const showDownloadBtns = document.getElementById('showDownloadBtns');
+    const downloadQuality = document.getElementById('downloadQuality');
 
     // Initialize popup
     initializePopup();
@@ -14,6 +31,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listeners
     refreshBtn.addEventListener('click', checkAuthenticationStatus);
     checkPageBtn.addEventListener('click', checkCurrentPage);
+    
+    // Tab switching
+    menuTabs.forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+    
+    // Download tool events
+    enableDownloadBtn.addEventListener('click', enableDownloadMode);
+    downloadSettingsBtn.addEventListener('click', openDownloadSettings);
+    
+    // Settings events
+    saveSettingsBtn.addEventListener('click', saveSettings);
+    resetSettingsBtn.addEventListener('click', resetSettings);
 
     function initializePopup() {
         // Set initial state
@@ -21,6 +51,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Check authentication status when popup opens
         checkAuthenticationStatus();
+        
+        // Load saved settings
+        loadSettings();
+    }
+
+    function switchTab(tabName) {
+        // Remove active class from all tabs and contents
+        menuTabs.forEach(tab => tab.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+        
+        // Add active class to selected tab and content
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        document.getElementById(`${tabName}-tab`).classList.add('active');
     }
 
     function setStatus(type, text) {
@@ -133,6 +176,91 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPage.textContent = page;
         userId.textContent = id;
         username.textContent = name;
+    }
+
+    async function enableDownloadMode() {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            if (!tab.url || !tab.url.includes('tiktok.com')) {
+                alert('Please navigate to a TikTok page first');
+                return;
+            }
+
+            // Send message to content script to enable download mode
+            const response = await chrome.tabs.sendMessage(tab.id, {
+                action: 'enableDownloadMode',
+                options: {
+                    watermark: watermarkOption.checked,
+                    audio: audioOption.checked,
+                    quality: downloadQuality.value
+                }
+            });
+
+            if (response && response.success) {
+                enableDownloadBtn.textContent = 'Download Mode Active';
+                enableDownloadBtn.classList.add('btn-success');
+                alert('Download mode enabled! Download buttons will appear on TikTok posts.');
+            } else {
+                alert('Failed to enable download mode. Please refresh the TikTok page and try again.');
+            }
+        } catch (error) {
+            console.error('Error enabling download mode:', error);
+            alert('Error enabling download mode. Please try again.');
+        }
+    }
+
+    function openDownloadSettings() {
+        // Switch to settings tab
+        switchTab('settings');
+    }
+
+    async function saveSettings() {
+        const settings = {
+            autoCheckAuth: autoCheckAuth.checked,
+            showDownloadBtns: showDownloadBtns.checked,
+            downloadQuality: downloadQuality.value,
+            watermarkOption: watermarkOption.checked,
+            audioOption: audioOption.checked
+        };
+
+        try {
+            await chrome.storage.local.set({ settings });
+            alert('Settings saved successfully!');
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            alert('Error saving settings. Please try again.');
+        }
+    }
+
+    async function resetSettings() {
+        if (confirm('Are you sure you want to reset all settings to default?')) {
+            // Reset to default values
+            autoCheckAuth.checked = true;
+            showDownloadBtns.checked = true;
+            downloadQuality.value = 'medium';
+            watermarkOption.checked = true;
+            audioOption.checked = true;
+            
+            // Save default settings
+            await saveSettings();
+        }
+    }
+
+    async function loadSettings() {
+        try {
+            const result = await chrome.storage.local.get(['settings']);
+            if (result.settings) {
+                const settings = result.settings;
+                autoCheckAuth.checked = settings.autoCheckAuth !== undefined ? settings.autoCheckAuth : true;
+                showDownloadBtns.checked = settings.showDownloadBtns !== undefined ? settings.showDownloadBtns : true;
+                downloadQuality.value = settings.downloadQuality || 'medium';
+                watermarkOption.checked = settings.watermarkOption !== undefined ? settings.watermarkOption : true;
+                audioOption.checked = settings.audioOption !== undefined ? settings.audioOption : true;
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        }
     }
 
     // Check status every 5 seconds when popup is open

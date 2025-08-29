@@ -12,8 +12,8 @@ body {
 }
 
 .container {
-    width: 350px;
-    min-height: 500px;
+    width: 380px;
+    min-height: 600px;
     background: white;
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
@@ -38,10 +38,149 @@ body {
     opacity: 0.9;
 }
 
+/* Header Menu Styles */
+.header-menu {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.menu-tabs {
+    display: flex;
+    background: white;
+}
+
+.menu-tab {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.menu-tab:hover {
+    background: #f8f9fa;
+    color: #495057;
+}
+
+.menu-tab.active {
+    color: #ff0050;
+    border-bottom-color: #ff0050;
+    background: #fff5f7;
+}
+
+/* Tab Content Styles */
+.tab-content {
+    display: none;
+    padding: 20px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Download Section Styles */
+.download-section {
+    text-align: center;
+}
+
+.download-info h3 {
+    color: #495057;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+.download-info p {
+    color: #6c757d;
+    font-size: 13px;
+    margin-bottom: 20px;
+}
+
+.download-status {
+    margin: 20px 0;
+}
+
+.download-icon {
+    background: #28a745 !important;
+    font-size: 20px;
+}
+
+.download-options {
+    margin: 20px 0;
+    text-align: left;
+}
+
+.option-item {
+    margin: 12px 0;
+    display: flex;
+    align-items: center;
+}
+
+.option-item label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: #495057;
+}
+
+.option-item input[type="checkbox"] {
+    margin-right: 8px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Settings Section Styles */
+.settings-section h3 {
+    color: #495057;
+    margin-bottom: 20px;
+    font-size: 16px;
+    text-align: center;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 16px 0;
+    padding: 12px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-item label {
+    font-size: 14px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.setting-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+.setting-item select {
+    padding: 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 13px;
+    background: white;
+    color: #495057;
+}
+
 .status-section {
     padding: 30px 20px;
     text-align: center;
     background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 20px;
 }
 
 .status-indicator {
@@ -86,8 +225,9 @@ body {
 }
 
 .info-section {
-    padding: 20px;
     background: white;
+    border-radius: 8px;
+    margin-bottom: 20px;
 }
 
 .info-item {
@@ -117,7 +257,6 @@ body {
 }
 
 .actions {
-    padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -153,6 +292,15 @@ body {
 .btn-secondary:hover {
     background: #5a6268;
     transform: translateY(-2px);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
 }
 
 .footer {

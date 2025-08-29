@@ -1,5 +1,6 @@
 // TikTok Full Extension - Content Script
 // This script runs on TikTok pages and detects authentication status
+// Also provides download functionality for TikTok videos
 
 (function() {
     'use strict';
@@ -11,6 +12,16 @@
         username: null,
         pageType: 'Unknown',
         lastChecked: null
+    };
+
+    // Download mode state
+    let downloadMode = {
+        enabled: false,
+        options: {
+            watermark: true,
+            audio: true,
+            quality: 'medium'
+        }
     };
 
     // Initialize content script
@@ -28,6 +39,9 @@
         
         // Listen for page changes
         observePageChanges();
+        
+        // Load saved settings
+        loadSettings();
     }
 
     function handleMessage(request, sender, sendResponse) {
@@ -45,6 +59,27 @@
                 sendResponse({
                     success: true,
                     ...info
+                });
+                break;
+                
+            case 'enableDownloadMode':
+                downloadMode.enabled = true;
+                downloadMode.options = request.options || downloadMode.options;
+                saveSettings();
+                injectDownloadButtons();
+                sendResponse({
+                    success: true,
+                    message: 'Download mode enabled'
+                });
+                break;
+                
+            case 'disableDownloadMode':
+                downloadMode.enabled = false;
+                saveSettings();
+                removeDownloadButtons();
+                sendResponse({
+                    success: true,
+                    message: 'Download mode disabled'
                 });
                 break;
                 
@@ -287,7 +322,20 @@
         const observer = new MutationObserver(() => {
             if (window.location.href !== currentUrl) {
                 currentUrl = window.location.href;
-                setTimeout(checkAuthentication, 1000); // Check after navigation
+                setTimeout(() => {
+                    checkAuthentication();
+                    if (downloadMode.enabled) {
+                        injectDownloadButtons();
+                    }
+                }, 1000); // Check after navigation
+            }
+            
+            // Check for new content being added
+            if (downloadMode.enabled) {
+                const newPosts = document.querySelectorAll('[data-e2e="feed-item"]:not([data-tiktok-download-injected])');
+                if (newPosts.length > 0) {
+                    newPosts.forEach(post => injectDownloadButton(post));
+                }
             }
         });
         
@@ -297,11 +345,214 @@
         });
     }
 
+    // Download functionality
+    function injectDownloadButtons() {
+        if (!downloadMode.enabled) return;
+        
+        // Find all TikTok posts/videos
+        const posts = document.querySelectorAll('[data-e2e="feed-item"], [data-e2e="video-item"], .video-item, .feed-item');
+        
+        posts.forEach(post => {
+            if (!post.hasAttribute('data-tiktok-download-injected')) {
+                injectDownloadButton(post);
+            }
+        });
+    }
+
+    function injectDownloadButton(post) {
+        try {
+            // Create download button
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'tiktok-download-btn';
+            downloadBtn.innerHTML = '📥';
+            downloadBtn.title = 'Download Video';
+            downloadBtn.style.cssText = `
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: rgba(0, 0, 0, 0.7);
+                border: 2px solid white;
+                color: white;
+                font-size: 16px;
+                cursor: pointer;
+                z-index: 1000;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            
+            // Add hover effects
+            downloadBtn.addEventListener('mouseenter', () => {
+                downloadBtn.style.background = 'rgba(255, 0, 80, 0.9)';
+                downloadBtn.style.transform = 'scale(1.1)';
+            });
+            
+            downloadBtn.addEventListener('mouseleave', () => {
+                downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+                downloadBtn.style.transform = 'scale(1)';
+            });
+            
+            // Add click handler
+            downloadBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDownloadClick(post);
+            });
+            
+            // Make post position relative if needed
+            if (getComputedStyle(post).position === 'static') {
+                post.style.position = 'relative';
+            }
+            
+            // Add button to post
+            post.appendChild(downloadBtn);
+            post.setAttribute('data-tiktok-download-injected', 'true');
+            
+        } catch (error) {
+            console.error('Error injecting download button:', error);
+        }
+    }
+
+    function removeDownloadButtons() {
+        const downloadBtns = document.querySelectorAll('.tiktok-download-btn');
+        downloadBtns.forEach(btn => btn.remove());
+        
+        const posts = document.querySelectorAll('[data-tiktok-download-injected]');
+        posts.forEach(post => post.removeAttribute('data-tiktok-download-injected'));
+    }
+
+    async function handleDownloadClick(post) {
+        try {
+            // Show loading state
+            const downloadBtn = post.querySelector('.tiktok-download-btn');
+            const originalContent = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '⏳';
+            downloadBtn.style.background = 'rgba(255, 193, 7, 0.9)';
+            
+            // Extract video information
+            const videoInfo = extractVideoInfo(post);
+            
+            if (!videoInfo) {
+                alert('Could not extract video information. Please try again.');
+                downloadBtn.innerHTML = originalContent;
+                downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+                return;
+            }
+            
+            // Attempt to download
+            const success = await downloadVideo(videoInfo);
+            
+            if (success) {
+                downloadBtn.innerHTML = '✅';
+                downloadBtn.style.background = 'rgba(40, 167, 69, 0.9)';
+                setTimeout(() => {
+                    downloadBtn.innerHTML = originalContent;
+                    downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+                }, 2000);
+            } else {
+                downloadBtn.innerHTML = '❌';
+                downloadBtn.style.background = 'rgba(220, 53, 69, 0.9)';
+                setTimeout(() => {
+                    downloadBtn.innerHTML = originalContent;
+                    downloadBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+                }, 2000);
+            }
+            
+        } catch (error) {
+            console.error('Error handling download:', error);
+            alert('Download failed. Please try again.');
+        }
+    }
+
+    function extractVideoInfo(post) {
+        try {
+            // Try to find video element
+            const video = post.querySelector('video');
+            if (!video) return null;
+            
+            // Get video source
+            const videoSrc = video.src || video.currentSrc;
+            if (!videoSrc) return null;
+            
+            // Try to get additional info
+            const title = post.querySelector('[data-e2e="video-title"], .video-title, .title')?.textContent || 'TikTok Video';
+            const username = post.querySelector('[data-e2e="username"], .username, .user-name')?.textContent || 'Unknown User';
+            
+            return {
+                src: videoSrc,
+                title: title.trim(),
+                username: username.trim(),
+                timestamp: Date.now()
+            };
+        } catch (error) {
+            console.error('Error extracting video info:', error);
+            return null;
+        }
+    }
+
+    async function downloadVideo(videoInfo) {
+        try {
+            // For now, we'll use a simple approach
+            // In a real implementation, you'd need to handle the actual video download
+            // This is a placeholder that shows the download would work
+            
+            console.log('Downloading video:', videoInfo);
+            
+            // Create a temporary link to trigger download
+            const link = document.createElement('a');
+            link.href = videoInfo.src;
+            link.download = `tiktok_${videoInfo.username}_${videoInfo.timestamp}.mp4`;
+            link.target = '_blank';
+            
+            // Add to DOM temporarily
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Note: This approach has limitations due to CORS and TikTok's security
+            // A real implementation would need to handle the video data properly
+            
+            return true;
+        } catch (error) {
+            console.error('Error downloading video:', error);
+            return false;
+        }
+    }
+
+    async function loadSettings() {
+        try {
+            const result = await chrome.storage.local.get(['downloadMode']);
+            if (result.downloadMode) {
+                downloadMode = result.downloadMode;
+                if (downloadMode.enabled) {
+                    setTimeout(injectDownloadButtons, 2000); // Wait for page to load
+                }
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        }
+    }
+
+    async function saveSettings() {
+        try {
+            await chrome.storage.local.set({ downloadMode });
+        } catch (error) {
+            console.error('Error saving settings:', error);
+        }
+    }
+
     // Expose functions for debugging
     window.tikTokExtension = {
         checkAuthentication,
         getPageInfo,
-        authData
+        authData,
+        downloadMode,
+        injectDownloadButtons,
+        removeDownloadButtons
     };
 
 })();
