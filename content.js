@@ -1577,16 +1577,6 @@
         }
     }
 
-    // Expose functions for debugging
-    window.tikTokExtension = {
-        checkAuthentication,
-        getPageInfo,
-        authData,
-        downloadMode,
-        injectDownloadButtons,
-        removeDownloadButtons
-    };
-
     function checkDownloadModeStatus() {
         // If autoStart is enabled and user is authenticated but download mode is disabled,
         // re-enable it automatically
@@ -1602,6 +1592,16 @@
             }, 1000);
         }
     }
+
+    // Expose functions for debugging
+    window.tikTokExtension = {
+        checkAuthentication,
+        getPageInfo,
+        authData,
+        downloadMode,
+        injectDownloadButtons,
+        removeDownloadButtons
+    };
 
     // Log successful initialization
     console.log('TikTok Full Extension: Content script fully initialized and ready');
