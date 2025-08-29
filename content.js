@@ -51,6 +51,10 @@
 
     function handleMessage(request, sender, sendResponse) {
         console.log('TikTok Full Extension: Received message:', request);
+        console.log('TikTok Full Extension: Request action:', request.action);
+        console.log('TikTok Full Extension: Request action type:', typeof request.action);
+        console.log('TikTok Full Extension: Request action length:', request.action ? request.action.length : 'null');
+        console.log('TikTok Full Extension: Request action trimmed:', request.action ? request.action.trim() : 'null');
         
         try {
             switch (request.action) {
@@ -116,6 +120,8 @@
                     
                 default:
                     console.log('TikTok Full Extension: Unknown action:', request.action);
+                    console.log('TikTok Full Extension: Action comparison with ping:', request.action === 'ping');
+                    console.log('TikTok Full Extension: Action comparison with "ping":', request.action === "ping");
                     sendResponse({ 
                         success: false, 
                         error: 'Unknown action: ' + request.action 
