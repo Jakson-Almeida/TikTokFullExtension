@@ -1351,91 +1351,103 @@
         }
     }
 
-    function showDownloadError(message) {
-        // Create a better error modal
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            z-index: 10000;
-            max-width: 300px;
-            text-align: center;
-            border: 2px solid #dc3545;
-        `;
-        
-        modal.innerHTML = `
-            <div style="color: #dc3545; font-size: 24px; margin-bottom: 10px;">❌</div>
-            <div style="color: #333; font-weight: 500; margin-bottom: 15px;">Download Error</div>
-            <div style="color: #666; margin-bottom: 20px; line-height: 1.4;">${message}</div>
-            <button onclick="this.parentElement.remove()" style="
-                background: #dc3545;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 500;
-            ">OK</button>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            if (modal.parentElement) {
-                modal.remove();
-            }
-        }, 5000);
-    }
+         function showDownloadError(message) {
+         // Create a better error modal
+         const modal = document.createElement('div');
+         modal.style.cssText = `
+             position: fixed;
+             top: 50%;
+             left: 50%;
+             transform: translate(-50%, -50%);
+             background: white;
+             padding: 20px;
+             border-radius: 12px;
+             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+             z-index: 10000;
+             max-width: 300px;
+             text-align: center;
+             border: 2px solid #dc3545;
+         `;
+         
+         modal.innerHTML = `
+             <div style="color: #dc3545; font-size: 24px; margin-bottom: 10px;">❌</div>
+             <div style="color: #333; font-weight: 500; margin-bottom: 15px;">Download Error</div>
+             <div style="color: #666; margin-bottom: 20px; line-height: 1.4;">${message}</div>
+             <button id="error-ok-btn" style="
+                 background: #dc3545;
+                 color: white;
+                 border: none;
+                 padding: 10px 20px;
+                 border-radius: 6px;
+                 cursor: pointer;
+                 font-weight: 500;
+             ">OK</button>
+         `;
+         
+         document.body.appendChild(modal);
+         
+         // Add event listener to the OK button
+         const okButton = modal.querySelector('#error-ok-btn');
+         okButton.addEventListener('click', () => {
+             modal.remove();
+         });
+         
+         // Auto-remove after 5 seconds
+         setTimeout(() => {
+             if (modal.parentElement) {
+                 modal.remove();
+             }
+         }, 5000);
+     }
 
-    function showDownloadSuccess(message) {
-        // Create a success modal
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            z-index: 10000;
-            max-width: 300px;
-            text-align: center;
-            border: 2px solid #28a745;
-        `;
-        
-        modal.innerHTML = `
-            <div style="color: #28a745; font-size: 24px; margin-bottom: 10px;">✅</div>
-            <div style="color: #333; font-weight: 500; margin-bottom: 15px;">Download Success</div>
-            <div style="color: #666; margin-bottom: 20px; line-height: 1.4;">${message}</div>
-            <button onclick="this.parentElement.remove()" style="
-                background: #28a745;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 500;
-            ">OK</button>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Auto-remove after 3 seconds
-        setTimeout(() => {
-            if (modal.parentElement) {
-                modal.remove();
-            }
-        }, 3000);
-    }
+         function showDownloadSuccess(message) {
+         // Create a success modal
+         const modal = document.createElement('div');
+         modal.style.cssText = `
+             position: fixed;
+             top: 50%;
+             left: 50%;
+             transform: translate(-50%, -50%);
+             background: white;
+             padding: 20px;
+             border-radius: 12px;
+             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+             z-index: 10000;
+             max-width: 300px;
+             text-align: center;
+             border: 2px solid #28a745;
+         `;
+         
+         modal.innerHTML = `
+             <div style="color: #28a745; font-size: 24px; margin-bottom: 10px;">✅</div>
+             <div style="color: #333; font-weight: 500; margin-bottom: 15px;">Download Success</div>
+             <div style="color: #666; margin-bottom: 20px; line-height: 1.4;">${message}</div>
+             <button id="success-ok-btn" style="
+                 background: #28a745;
+                 color: white;
+                 border: none;
+                 padding: 10px 20px;
+                 border-radius: 6px;
+                 cursor: pointer;
+                 font-weight: 500;
+             ">OK</button>
+         `;
+         
+         document.body.appendChild(modal);
+         
+         // Add event listener to the OK button
+         const okButton = modal.querySelector('#success-ok-btn');
+         okButton.addEventListener('click', () => {
+             modal.remove();
+         });
+         
+         // Auto-remove after 3 seconds
+         setTimeout(() => {
+             if (modal.parentElement) {
+                 modal.remove();
+             }
+         }, 3000);
+     }
 
     async function loadSettings() {
         try {
