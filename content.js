@@ -142,42 +142,7 @@
                     sendResponse(pingResponse);
                     break;
                     
-                case 'forceDownloadVideo':
-                    // Force download a video from a specific post
-                    console.log('TikTok Full Extension: Processing forceDownloadVideo');
-                    
-                    // Handle async operations properly
-                    (async () => {
-                        try {
-                            const postSelector = request.postSelector || '[data-e2e="feed-item"]';
-                            const post = document.querySelector(postSelector);
-                            
-                            if (!post) {
-                                sendResponse({
-                                    success: false,
-                                    error: 'No post found to download from'
-                                });
-                                return;
-                            }
-                            
-                            // Extract video info and attempt download
-                            const videoInfo = await extractVideoInfoAdvanced(post);
-                            const downloadResult = await downloadVideoAdvanced(videoInfo, post);
-                            
-                            sendResponse({
-                                success: true,
-                                result: downloadResult,
-                                videoInfo: videoInfo
-                            });
-                        } catch (error) {
-                            console.error('TikTok Full Extension: Error in forceDownloadVideo:', error);
-                            sendResponse({
-                                success: false,
-                                error: 'Error processing force download: ' + error.message
-                            });
-                        }
-                    })();
-                    break;
+
                     
                 case 'test':
                     // Test case for debugging
@@ -1217,9 +1182,57 @@
         console.log('🔍 Attempting download with video info:', videoInfo);
         
         try {
-            // Method 1: Try to trigger download with chrome.downloads API (PRIORITY 1)
+            // Method 1: Open direct video URL in new tab (PRIORITY 1 - as requested by user)
             try {
-                console.log('🔍 Method 1: Using chrome.downloads API');
+                console.log('🔍 Method 1: Opening direct video URL in new tab (second guide)');
+                
+                // Look for actual video sources in the post
+                let directVideoUrl = null;
+                const videoElement = post.querySelector('video');
+                
+                if (videoElement) {
+                    // Check source tags first
+                    const sources = videoElement.querySelectorAll('source');
+                    if (sources.length > 0) {
+                        for (let source of sources) {
+                            const src = source.src;
+                            if (src && !src.startsWith('blob:') && src.includes('tiktok.com')) {
+                                directVideoUrl = src;
+                                console.log('🔍 Found direct video URL from source tag:', directVideoUrl);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Check video element's src attribute
+                    if (!directVideoUrl && videoElement.src && !videoElement.src.startsWith('blob:')) {
+                        directVideoUrl = videoElement.src;
+                        console.log('🔍 Found direct video URL from video element:', directVideoUrl);
+                    }
+                }
+                
+                // If we found a direct video URL, open it in a new tab
+                if (directVideoUrl) {
+                    console.log('🔍 Opening direct video URL in new tab:', directVideoUrl);
+                    const newTab = window.open(directVideoUrl, '_blank');
+                    if (newTab) {
+                        console.log('🔍 Successfully opened direct video URL in new tab');
+                        return { 
+                            success: true, 
+                            method: 'direct_video_new_tab', 
+                            message: 'Video opened in new tab (second guide). You can now download it from there.' 
+                        };
+                    }
+                } else {
+                    console.log('🔍 No direct video URL found, trying other methods');
+                }
+            } catch (error) {
+                console.log('🔍 Method 1 failed:', error);
+            }
+            
+            // Method 2: Try to trigger download with chrome.downloads API (PRIORITY 2)
+            try {
+                console.log('🔍 Method 2: Using chrome.downloads API');
                 
                 // Check if we have a direct video URL
                 if (videoInfo.src && !videoInfo.src.includes('www.tiktok.com') && !videoInfo.src.includes('(POTENTIALLY_BLOCKED)')) {
@@ -1247,12 +1260,12 @@
                     console.log('🔍 Skipping chrome.downloads API - not a direct video URL');
                 }
             } catch (error) {
-                console.log('🔍 Method 1 failed:', error);
+                console.log('🔍 Method 2 failed:', error);
             }
             
-            // Method 2: Try to create download link (PRIORITY 2)
+            // Method 3: Try to create download link (PRIORITY 3)
             try {
-                console.log('🔍 Method 2: Creating download link');
+                console.log('🔍 Method 3: Creating download link');
                 
                 if (videoInfo.src && !videoInfo.src.includes('www.tiktok.com') && !videoInfo.src.includes('(POTENTIALLY_BLOCKED)')) {
                     const link = document.createElement('a');
@@ -1269,82 +1282,6 @@
                     return { success: true, method: 'download_link', message: 'Download started via browser download' };
                 } else {
                     console.log('🔍 Skipping download link - not a direct video URL');
-                }
-            } catch (error) {
-                console.log('🔍 Method 2 failed:', error);
-            }
-            
-            // Method 3: Try to extract and download actual video file (PRIORITY 3)
-            try {
-                console.log('🔍 Method 3: Extracting actual video file for download');
-                
-                // Look for actual video elements with source URLs
-                const videoElement = post.querySelector('video');
-                if (videoElement) {
-                    console.log('🔍 Found video element, checking for sources');
-                    
-                    // Try to get the actual video source
-                    let videoSource = null;
-                    
-                    // Check source tags first
-                    const sources = videoElement.querySelectorAll('source');
-                    if (sources.length > 0) {
-                        for (let source of sources) {
-                            const src = source.src;
-                            if (src && !src.startsWith('blob:') && src.includes('tiktok.com')) {
-                                videoSource = src;
-                                console.log('🔍 Found video source from source tag:', videoSource);
-                                break;
-                            }
-                        }
-                    }
-                    
-                    // Check video element's src attribute
-                    if (!videoSource && videoElement.src && !videoElement.src.startsWith('blob:')) {
-                        videoSource = videoElement.src;
-                        console.log('🔍 Found video source from video element:', videoSource);
-                    }
-                    
-                    // If we found a video source, try to download it
-                    if (videoSource) {
-                        console.log('🔍 Attempting download with extracted video source');
-                        
-                        // Try chrome.downloads API first
-                        try {
-                            const filename = `tiktok_${videoInfo.username || 'video'}_${videoInfo.videoId || Date.now()}.mp4`;
-                            const response = await chrome.runtime.sendMessage({
-                                action: 'downloadVideo',
-                                data: {
-                                    url: videoSource,
-                                    filename: filename
-                                }
-                            });
-                            
-                            if (response && response.success) {
-                                console.log('🔍 Download successful with extracted source');
-                                return { success: true, method: 'extracted_source_download', message: 'Download started successfully!' };
-                            }
-                        } catch (error) {
-                            console.log('🔍 Chrome downloads API failed for extracted source:', error);
-                        }
-                        
-                        // Try download link as fallback
-                        try {
-                            const link = document.createElement('a');
-                            link.href = videoSource;
-                            link.download = `tiktok_${videoInfo.username || 'video'}_${videoInfo.videoId || Date.now()}.mp4`;
-                            link.target = '_blank';
-                            
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            
-                            console.log('🔍 Download link created with extracted source');
-                            return { success: true, method: 'extracted_source_link', message: 'Download started via browser download' };
-                        } catch (error) {
-                            console.log('🔍 Download link failed for extracted source:', error);
-                        }
-                    }
                 }
             } catch (error) {
                 console.log('🔍 Method 3 failed:', error);
@@ -1382,9 +1319,9 @@
                 console.log('🔍 Method 4 failed:', error);
             }
             
-            // Method 5: Try to open TikTok page in new tab (LAST RESORT)
+            // Method 5: Open TikTok page in new tab as fallback (PRIORITY 5)
             try {
-                console.log('🔍 Method 5: Opening TikTok page as last resort');
+                console.log('🔍 Method 5: Opening TikTok page in new tab as fallback');
                 
                 // Only do this if we have a TikTok page URL
                 if (videoInfo.src && videoInfo.src.includes('www.tiktok.com') && videoInfo.src.includes('/video/')) {
@@ -1392,7 +1329,11 @@
                     const newTab = window.open(videoInfo.src, '_blank');
                     if (newTab) {
                         console.log('🔍 Successfully opened TikTok page in new tab');
-                        return { success: true, method: 'tiktok_page', message: 'TikTok page opened. Right-click on the video and select "Save video as..." to download.' };
+                        return { 
+                            success: true, 
+                            method: 'tiktok_page_new_tab', 
+                            message: 'TikTok page opened in new tab (second guide). Right-click on the video and select "Save video as..." to download.' 
+                        };
                     }
                 }
             } catch (error) {

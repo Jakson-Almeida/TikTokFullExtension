@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Download tool elements
     const enableDownloadBtn = document.getElementById('enableDownloadBtn');
-    const forceDownloadBtn = document.getElementById('forceDownloadBtn');
+
     const downloadSettingsBtn = document.getElementById('downloadSettingsBtn');
     const watermarkOption = document.getElementById('watermarkOption');
     const audioOption = document.getElementById('audioOption');
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Download tool events
     enableDownloadBtn.addEventListener('click', enableDownloadMode);
-    forceDownloadBtn.addEventListener('click', forceDownloadCurrentVideo);
+
     downloadSettingsBtn.addEventListener('click', openDownloadSettings);
     
     // Settings events
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (!tab.url || !tab.url.includes('tiktok.com')) {
                 console.log('4. Not on TikTok page, showing alert');
-                alert('Please navigate to a TikTok page first');
+                console.log('Please navigate to a TikTok page first');
                 return;
             }
             
@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     } catch (retryError) {
                         console.error('12. All communication attempts failed:', retryError);
-                        alert('Cannot communicate with TikTok page. Please:\n1. Refresh the page\n2. Wait a few seconds\n3. Try again');
+                        console.log('Cannot communicate with TikTok page. Please:\n1. Refresh the page\n2. Wait a few seconds\n3. Try again');
                         return;
                     }
                 }
@@ -268,7 +268,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('13a. Response is null/undefined:', testResponse === null || testResponse === undefined);
                 console.error('13b. Response type:', typeof testResponse);
                 console.error('13c. Response success property:', testResponse?.success);
-                alert('Content script is not responding properly. Please refresh the TikTok page and try again.');
+                console.log('Content script is not responding properly. Please refresh the TikTok page and try again.');
                 return;
             }
 
@@ -294,12 +294,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('17. Download mode enabled successfully');
                 enableDownloadBtn.textContent = 'Download Mode Active';
                 enableDownloadBtn.classList.add('btn-success');
-                alert('Download mode enabled! Download buttons will appear on TikTok posts.\n\nIf you don\'t see download buttons, try scrolling down or refreshing the page.');
+                console.log('Download mode enabled! Download buttons will appear on TikTok posts.\n\nIf you don\'t see download buttons, try scrolling down or refreshing the page.');
             } else {
                 console.error('18. Failed to enable download mode');
                 const errorMsg = response?.error || 'Unknown error';
                 console.error('18a. Error message:', errorMsg);
-                alert(`Failed to enable download mode: ${errorMsg}\n\nPlease refresh the TikTok page and try again.`);
+                console.log(`Failed to enable download mode: ${errorMsg}\n\nPlease refresh the TikTok page and try again.`);
             }
             
             console.log('=== DOWNLOAD MODE DEBUG END ===');
@@ -311,53 +311,16 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error stack:', error.stack);
             
             if (error.message.includes('Could not establish connection')) {
-                alert('Cannot connect to TikTok page. Please:\n1. Make sure you\'re on a TikTok page\n2. Refresh the page\n3. Try again');
+                console.log('Cannot connect to TikTok page. Please:\n1. Make sure you\'re on a TikTok page\n2. Refresh the page\n3. Try again');
             } else {
-                alert(`Error enabling download mode: ${error.message}\n\nPlease try again or refresh the page.`);
+                console.log(`Error enabling download mode: ${error.message}\n\nPlease try again or refresh the page.`);
             }
             
             console.error('=== DOWNLOAD MODE ERROR END ===');
         }
     }
 
-    async function forceDownloadCurrentVideo() {
-        try {
-            // Get current active tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            
-            if (!tab.url || !tab.url.includes('tiktok.com')) {
-                alert('Please navigate to a TikTok page first');
-                return;
-            }
 
-            // Show loading state
-            forceDownloadBtn.textContent = 'Downloading...';
-            forceDownloadBtn.disabled = true;
-
-            // Send message to content script to force download
-            const response = await chrome.tabs.sendMessage(tab.id, {
-                action: 'forceDownloadVideo'
-            });
-
-            if (response && response.success) {
-                if (response.result && response.result.success) {
-                    alert(`Download successful!\n\nMethod: ${response.result.method}\nMessage: ${response.result.message}`);
-                } else {
-                    alert(`Download failed: ${response.result?.error || 'Unknown error'}`);
-                }
-            } else {
-                alert(`Error: ${response?.error || 'Failed to communicate with TikTok page'}`);
-            }
-
-        } catch (error) {
-            console.error('Error forcing download:', error);
-            alert(`Error: ${error.message}`);
-        } finally {
-            // Reset button state
-            forceDownloadBtn.textContent = 'Force Download Current Video';
-            forceDownloadBtn.disabled = false;
-        }
-    }
 
     function openDownloadSettings() {
         // Switch to settings tab
@@ -375,15 +338,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             await chrome.storage.local.set({ settings });
-            alert('Settings saved successfully!');
+            console.log('Settings saved successfully!');
         } catch (error) {
             console.error('Error saving settings:', error);
-            alert('Error saving settings. Please try again.');
+            console.log('Error saving settings. Please try again.');
         }
     }
 
     async function resetSettings() {
-        if (confirm('Are you sure you want to reset all settings to default?')) {
+        if (true) { // Auto-confirm for better user experience
             // Reset to default values
             autoCheckAuth.checked = true;
             showDownloadBtns.checked = true;
