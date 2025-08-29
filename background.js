@@ -80,6 +80,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const { url, filename } = request.data;
                 console.log('Background: Downloading video:', { url, filename });
                 
+                // Validate URL
+                if (!url || !url.startsWith('http')) {
+                    sendResponse({
+                        success: false,
+                        error: 'Invalid video URL'
+                    });
+                    return;
+                }
+                
+                // Check if URL is a TikTok page URL (not a direct video URL)
+                if (url.includes('www.tiktok.com') && url.includes('/video/')) {
+                    sendResponse({
+                        success: false,
+                        error: 'This is a TikTok page URL, not a direct video URL. Please try extracting the actual video file first.'
+                    });
+                    return;
+                }
+                
+                // Attempt to download the video
                 chrome.downloads.download({
                     url: url,
                     filename: filename,

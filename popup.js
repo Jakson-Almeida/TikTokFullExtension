@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Download tool elements
     const enableDownloadBtn = document.getElementById('enableDownloadBtn');
+    const forceDownloadBtn = document.getElementById('forceDownloadBtn');
     const downloadSettingsBtn = document.getElementById('downloadSettingsBtn');
     const watermarkOption = document.getElementById('watermarkOption');
     const audioOption = document.getElementById('audioOption');
@@ -39,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Download tool events
     enableDownloadBtn.addEventListener('click', enableDownloadMode);
+    forceDownloadBtn.addEventListener('click', forceDownloadCurrentVideo);
     downloadSettingsBtn.addEventListener('click', openDownloadSettings);
     
     // Settings events
@@ -315,6 +317,45 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             console.error('=== DOWNLOAD MODE ERROR END ===');
+        }
+    }
+
+    async function forceDownloadCurrentVideo() {
+        try {
+            // Get current active tab
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            if (!tab.url || !tab.url.includes('tiktok.com')) {
+                alert('Please navigate to a TikTok page first');
+                return;
+            }
+
+            // Show loading state
+            forceDownloadBtn.textContent = 'Downloading...';
+            forceDownloadBtn.disabled = true;
+
+            // Send message to content script to force download
+            const response = await chrome.tabs.sendMessage(tab.id, {
+                action: 'forceDownloadVideo'
+            });
+
+            if (response && response.success) {
+                if (response.result && response.result.success) {
+                    alert(`Download successful!\n\nMethod: ${response.result.method}\nMessage: ${response.result.message}`);
+                } else {
+                    alert(`Download failed: ${response.result?.error || 'Unknown error'}`);
+                }
+            } else {
+                alert(`Error: ${response?.error || 'Failed to communicate with TikTok page'}`);
+            }
+
+        } catch (error) {
+            console.error('Error forcing download:', error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            // Reset button state
+            forceDownloadBtn.textContent = 'Force Download Current Video';
+            forceDownloadBtn.disabled = false;
         }
     }
 

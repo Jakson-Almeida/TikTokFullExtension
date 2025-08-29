@@ -142,6 +142,43 @@
                     sendResponse(pingResponse);
                     break;
                     
+                case 'forceDownloadVideo':
+                    // Force download a video from a specific post
+                    console.log('TikTok Full Extension: Processing forceDownloadVideo');
+                    
+                    // Handle async operations properly
+                    (async () => {
+                        try {
+                            const postSelector = request.postSelector || '[data-e2e="feed-item"]';
+                            const post = document.querySelector(postSelector);
+                            
+                            if (!post) {
+                                sendResponse({
+                                    success: false,
+                                    error: 'No post found to download from'
+                                });
+                                return;
+                            }
+                            
+                            // Extract video info and attempt download
+                            const videoInfo = await extractVideoInfoAdvanced(post);
+                            const downloadResult = await downloadVideoAdvanced(videoInfo, post);
+                            
+                            sendResponse({
+                                success: true,
+                                result: downloadResult,
+                                videoInfo: videoInfo
+                            });
+                        } catch (error) {
+                            console.error('TikTok Full Extension: Error in forceDownloadVideo:', error);
+                            sendResponse({
+                                success: false,
+                                error: 'Error processing force download: ' + error.message
+                            });
+                        }
+                    })();
+                    break;
+                    
                 case 'test':
                     // Test case for debugging
                     console.log('TikTok Full Extension: Received test request');
@@ -586,49 +623,8 @@
         console.log('TikTok Full Extension: Download buttons removed');
     }
 
-    function constructVideoUrlFromId(videoId) {
-        console.log('Constructing video URL from ID:', videoId);
-        
-        if (!videoId) {
-            console.log('No video ID provided');
-            return null;
-        }
-
-        // Instead of constructing CDN URLs that get blocked, try to find working patterns
-        // from existing videos on the page
-        console.log('Looking for working video URL patterns on the page...');
-        
-        try {
-            // Find all video elements on the page that have working sources
-            const allVideos = document.querySelectorAll('video source');
-            for (let source of allVideos) {
-                const src = source.src;
-                if (src && !src.startsWith('blob:') && src.includes('tiktok.com') && src.includes('/video/')) {
-                    console.log('Found working video URL pattern:', src);
-                    
-                    // Extract the base pattern and try to apply it to our video ID
-                    const urlParts = src.split('/');
-                    if (urlParts.length > 2) {
-                        // Remove the last part (which is usually a hash or specific video ID)
-                        const basePattern = urlParts.slice(0, -1).join('/') + '/';
-                        const newUrl = basePattern + videoId + '/';
-                        console.log('Constructed URL using working pattern:', newUrl);
-                        return newUrl;
-                    }
-                }
-            }
-        } catch (error) {
-            console.log('Error looking for working patterns:', error);
-        }
-
-        // If no working pattern found, try some safer alternatives
-        console.log('No working pattern found, trying safer alternatives...');
-        
-        // Try the main TikTok page URL as a fallback
-        const mainPageUrl = `https://www.tiktok.com/@user/video/${videoId}`;
-        console.log('Using main page URL as fallback:', mainPageUrl);
-        return mainPageUrl;
-    }
+    // Note: constructVideoUrlFromId function removed - we now use actual working URLs from the page
+    // instead of constructing CDN URLs that get blocked
 
     async function handleDownloadClick(post) {
         try {
@@ -687,8 +683,8 @@
                 
                             // Show error message with better guidance for CDN issues
             let errorMessage = `Download failed: ${downloadResult.error}`;
-            if (videoInfo.src && videoInfo.src.includes('(CDN_URL)')) {
-                errorMessage = 'This video uses a CDN URL that may be blocked. Try:\n1. Opening the post in a new tab\n2. Waiting a few minutes and trying again\n3. Using a different video';
+            if (videoInfo.src && videoInfo.src.includes('(POTENTIALLY_BLOCKED)')) {
+                errorMessage = 'This video uses a CDN URL that may be blocked. The extension will try to open the post page instead.';
             }
             showDownloadError(errorMessage);
             }
@@ -719,7 +715,7 @@
         let username = '';
         let videoId = '';
 
-        // Method 1: Try to get from video element with source tags (most reliable)
+        // Method 1: Try to get from video element with source tags (most reliable for actual video URLs)
         const videoElement = postElement.querySelector('video');
         if (videoElement) {
             console.log('Method 1: Found video element with sources');
@@ -743,244 +739,302 @@
             }
         }
 
-        // Method 2: Look for video URLs in data attributes of the post container
+        // Method 2: Look for actual video URLs in data attributes (prioritize these over page URLs)
         if (!videoSrc) {
-            console.log('Method 2: Checking post container data attributes');
-            const container = postElement.closest('[data-e2e*="item"], [id*="container"], [class*="container"]');
-            if (container) {
-                const dataVideo = container.getAttribute('data-video-url') || 
-                                 container.getAttribute('data-video-src') ||
-                                 container.getAttribute('data-src') ||
-                                 container.getAttribute('data-href');
-                if (dataVideo && !dataVideo.startsWith('blob:')) {
-                    console.log('Method 2: Found video URL in container data:', dataVideo);
-                    videoSrc = dataVideo;
+            console.log('Method 2: Checking for actual video URLs in data attributes');
+            
+            // Look for video-specific data attributes that might contain actual video URLs
+            const videoDataSelectors = [
+                '[data-video-url]',
+                '[data-video-src]',
+                '[data-src]',
+                '[data-href]',
+                '[data-video]',
+                '[data-media-url]',
+                '[data-media-src]'
+            ];
+            
+            for (let selector of videoDataSelectors) {
+                const elements = postElement.querySelectorAll(selector);
+                for (let element of elements) {
+                    const dataVideo = element.getAttribute('data-video-url') || 
+                                     element.getAttribute('data-video-src') ||
+                                     element.getAttribute('data-src') ||
+                                     element.getAttribute('data-href') ||
+                                     element.getAttribute('data-video') ||
+                                     element.getAttribute('data-media-url') ||
+                                     element.getAttribute('data-media-src');
+                    
+                    if (dataVideo && !dataVideo.startsWith('blob:') && dataVideo.includes('tiktok.com')) {
+                        // Check if this looks like an actual video URL (not a page URL)
+                        if (dataVideo.includes('/video/') && !dataVideo.includes('www.tiktok.com')) {
+                            console.log('Method 2: Found actual video URL in data attribute:', dataVideo);
+                            videoSrc = dataVideo;
+                            break;
+                        }
+                    }
                 }
+                if (videoSrc) break;
             }
         }
 
-        // Method 3: Extract from post link href and construct video URL
+        // Method 3: Look for video URLs in the post's HTML content using regex (prioritize non-page URLs)
         if (!videoSrc) {
-            console.log('Method 3: Extracting from post link href');
-            const postLink = postElement.querySelector('a[href*="/video/"]');
-            if (postLink) {
-                const href = postLink.href;
-                console.log('Method 3: Found post link:', href);
-                
-                // Extract video ID from href
-                const videoIdMatch = href.match(/\/video\/(\d+)/);
-                if (videoIdMatch) {
-                    videoId = videoIdMatch[1];
-                    console.log('Method 3: Extracted video ID:', videoId);
-                    
-                    // Try to construct direct video URL using known patterns
-                    const videoUrl = constructVideoUrlFromId(videoId);
-                    if (videoUrl) {
-                        console.log('Method 3: Constructed video URL:', videoUrl);
-                        videoSrc = videoUrl;
+            console.log('Method 3: Searching HTML content for actual video URLs');
+            const postHTML = postElement.innerHTML;
+            
+            // Look for CDN URLs first (these are usually actual video files)
+            const cdnUrlMatch = postHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*\/[^"'\s]*\.mp4[^"'\s]*/);
+            if (cdnUrlMatch && !cdnUrlMatch[0].startsWith('blob:')) {
+                console.log('Method 3: Found CDN video URL:', cdnUrlMatch[0]);
+                videoSrc = cdnUrlMatch[0];
+            } else {
+                // Look for any video URLs that don't look like page URLs
+                const videoUrlMatch = postHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
+                if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
+                    // Check if it's not a page URL
+                    if (!videoUrlMatch[0].includes('www.tiktok.com')) {
+                        console.log('Method 3: Found actual video URL in HTML:', videoUrlMatch[0]);
+                        videoSrc = videoUrlMatch[0];
                     }
                 }
             }
         }
 
-        // Method 4: Look for video URLs in the post's HTML content using regex
+        // Method 4: Look for video URLs in parent elements (up to 3 levels up)
         if (!videoSrc) {
-            console.log('Method 4: Searching HTML content for video URLs');
-            const postHTML = postElement.innerHTML;
-            const videoUrlMatch = postHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
-            if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
-                console.log('Method 4: Found video URL in HTML:', videoUrlMatch[0]);
-                videoSrc = videoUrlMatch[0];
-            }
-        }
-
-        // Method 5: Look for video URLs in parent elements (up to 3 levels up)
-        if (!videoSrc) {
-            console.log('Method 5: Checking parent elements for video URLs');
+            console.log('Method 4: Checking parent elements for actual video URLs');
             let parent = postElement.parentElement;
             let level = 0;
             while (parent && level < 3) {
                 const parentHTML = parent.innerHTML;
+                
+                // Look for CDN URLs first
+                const cdnUrlMatch = parentHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*\/[^"'\s]*\.mp4[^"'\s]*/);
+                if (cdnUrlMatch && !cdnUrlMatch[0].startsWith('blob:')) {
+                    console.log('Method 4: Found CDN video URL in parent level', level, ':', cdnUrlMatch[0]);
+                    videoSrc = cdnUrlMatch[0];
+                    break;
+                }
+                
+                // Look for other video URLs
                 const videoUrlMatch = parentHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
-                if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
-                    console.log('Method 5: Found video URL in parent level', level, ':', videoUrlMatch[0]);
+                if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:') && !videoUrlMatch[0].includes('www.tiktok.com')) {
+                    console.log('Method 4: Found actual video URL in parent level', level, ':', videoUrlMatch[0]);
                     videoSrc = videoUrlMatch[0];
                     break;
                 }
+                
                 parent = parent.parentElement;
                 level++;
             }
         }
 
-        // Method 6: Look for video URLs in the entire page HTML (fallback)
+        // Method 5: Try to extract from TikTok's internal data structures
         if (!videoSrc) {
-            console.log('Method 6: Searching entire page for video URLs');
-            const pageHTML = document.documentElement.innerHTML;
-            const videoUrlMatches = pageHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/g);
-            if (videoUrlMatches) {
-                // Filter out blob URLs and find the first valid one
-                for (let url of videoUrlMatches) {
-                    if (!url.startsWith('blob:') && url.includes('/video/')) {
-                        console.log('Method 6: Found video URL in page:', url);
-                        videoSrc = url;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Method 7: Try to extract from TikTok's internal data structures
-        if (!videoSrc) {
-            console.log('Method 7: Checking TikTok internal data structures');
+            console.log('Method 5: Checking TikTok internal data structures');
             try {
                 // Look for any script tags that might contain video data
                 const scripts = document.querySelectorAll('script');
                 for (let script of scripts) {
                     if (script.textContent && script.textContent.includes('video')) {
+                        // Look for CDN URLs first
+                        const cdnUrlMatch = script.textContent.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*\/[^"'\s]*\.mp4[^"'\s]*/);
+                        if (cdnUrlMatch && !cdnUrlMatch[0].startsWith('blob:')) {
+                            console.log('Method 5: Found CDN video URL in script:', cdnUrlMatch[0]);
+                            videoSrc = cdnUrlMatch[0];
+                            break;
+                        }
+                        
+                        // Look for other video URLs
                         const videoUrlMatch = script.textContent.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
-                        if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
-                            console.log('Method 7: Found video URL in script:', videoUrlMatch[0]);
+                        if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:') && !videoUrlMatch[0].includes('www.tiktok.com')) {
+                            console.log('Method 5: Found actual video URL in script:', videoUrlMatch[0]);
                             videoSrc = videoUrlMatch[0];
                             break;
                         }
                     }
                 }
             } catch (error) {
-                console.log('Method 7: Error checking scripts:', error);
+                console.log('Method 5: Error checking scripts:', error);
             }
         }
 
-        // Method 8: Try to find video URLs in iframe sources
+        // Method 6: Try to find video URLs in iframe sources
         if (!videoSrc) {
-            console.log('Method 8: Checking iframe sources');
+            console.log('Method 6: Checking iframe sources');
             const iframes = document.querySelectorAll('iframe');
             for (let iframe of iframes) {
                 if (iframe.src && iframe.src.includes('tiktok.com') && iframe.src.includes('video')) {
-                    console.log('Method 8: Found video URL in iframe:', iframe.src);
+                    console.log('Method 6: Found video URL in iframe:', iframe.src);
                     videoSrc = iframe.src;
                     break;
                 }
             }
         }
 
-        // Method 9: Look for video URLs in meta tags
+        // Method 7: Look for video URLs in meta tags
         if (!videoSrc) {
-            console.log('Method 9: Checking meta tags');
+            console.log('Method 7: Checking meta tags');
             const metaTags = document.querySelectorAll('meta[property*="video"], meta[name*="video"]');
             for (let meta of metaTags) {
                 const content = meta.content || meta.getAttribute('content');
                 if (content && content.includes('tiktok.com') && content.includes('video')) {
-                    console.log('Method 9: Found video URL in meta tag:', content);
+                    console.log('Method 7: Found video URL in meta tag:', content);
                     videoSrc = content;
                     break;
                 }
             }
         }
 
-        // Method 10: Try to extract from TikTok's video player data
+        // Method 8: Try to extract from TikTok's video player data
         if (!videoSrc) {
-            console.log('Method 10: Checking TikTok video player data');
+            console.log('Method 8: Checking TikTok video player data');
             const videoPlayers = postElement.querySelectorAll('[class*="video-player"], [class*="xgplayer"], [id*="xgwrapper"]');
             for (let player of videoPlayers) {
                 const playerHTML = player.innerHTML;
+                
+                // Look for CDN URLs first
+                const cdnUrlMatch = playerHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*\/[^"'\s]*\.mp4[^"'\s]*/);
+                if (cdnUrlMatch && !cdnUrlMatch[0].startsWith('blob:')) {
+                    console.log('Method 8: Found CDN video URL in player:', cdnUrlMatch[0]);
+                    videoSrc = cdnUrlMatch[0];
+                    break;
+                }
+                
+                // Look for other video URLs
                 const videoUrlMatch = playerHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
-                if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
-                    console.log('Method 10: Found video URL in player:', videoUrlMatch[0]);
+                if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:') && !videoUrlMatch[0].includes('www.tiktok.com')) {
+                    console.log('Method 8: Found actual video URL in player:', videoUrlMatch[0]);
                     videoSrc = videoUrlMatch[0];
                     break;
                 }
             }
         }
 
-        // Method 11: Look for video URLs in data attributes of video-related elements
+        // Method 9: Look for video URLs in data attributes of video-related elements
         if (!videoSrc) {
-            console.log('Method 11: Checking video-related data attributes');
+            console.log('Method 9: Checking video-related data attributes');
             const videoElements = postElement.querySelectorAll('[data-video-url], [data-video-src], [data-src], [data-href]');
             for (let element of videoElements) {
                 const dataVideo = element.getAttribute('data-video-url') || 
                                  element.getAttribute('data-video-src') ||
                                  element.getAttribute('data-src') ||
-                                 element.getAttribute('data-href');
+                                 element.getAttribute('content');
                 if (dataVideo && dataVideo.includes('tiktok.com') && !dataVideo.startsWith('blob:')) {
-                    console.log('Method 11: Found video URL in data attribute:', dataVideo);
+                    console.log('Method 9: Found video URL in data attribute:', dataVideo);
                     videoSrc = dataVideo;
                     break;
                 }
             }
         }
 
-        // Method 12: Try to find video URLs in the post's text content
+        // Method 10: Try to find video URLs in the post's text content
         if (!videoSrc) {
-            console.log('Method 12: Searching post text content for video URLs');
+            console.log('Method 10: Searching post text content for video URLs');
             const textContent = postElement.textContent || '';
-            const videoUrlMatch = textContent.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
-            if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:')) {
-                console.log('Method 12: Found video URL in text content:', videoUrlMatch[0]);
-                videoSrc = videoUrlMatch[0];
+            
+            // Look for CDN URLs first
+            const cdnUrlMatch = textContent.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*\/[^"'\s]*\.mp4[^"'\s]*/);
+            if (cdnUrlMatch && !cdnUrlMatch[0].startsWith('blob:')) {
+                console.log('Method 10: Found CDN video URL in text content:', cdnUrlMatch[0]);
+                videoSrc = cdnUrlMatch[0];
+            } else {
+                // Look for other video URLs
+                const videoUrlMatch = textContent.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/);
+                if (videoUrlMatch && !videoUrlMatch[0].startsWith('blob:') && !videoUrlMatch[0].includes('www.tiktok.com')) {
+                    console.log('Method 10: Found actual video URL in text content:', videoUrlMatch[0]);
+                    videoSrc = videoUrlMatch[0];
+                }
             }
         }
 
-        // Method 13: Try to construct video URL using extracted video ID and known patterns
-        if (!videoSrc && videoId) {
-            console.log('Method 13: Constructing video URL from ID:', videoId);
-            const constructedUrl = constructVideoUrlFromId(videoId);
-            if (constructedUrl) {
-                console.log('Method 13: Successfully constructed URL:', constructedUrl);
-                videoSrc = constructedUrl;
-            }
-        }
-
-        // Method 15: Try to find working video URLs from other posts on the page
+        // Method 11: Try to find working video URLs from other posts on the page
         if (!videoSrc) {
-            console.log('Method 15: Looking for working video URLs from other posts');
+            console.log('Method 11: Looking for working video URLs from other posts');
             try {
                 // Find all video elements on the page that have working sources
                 const allVideos = document.querySelectorAll('video source');
                 for (let source of allVideos) {
                     const src = source.src;
                     if (src && !src.startsWith('blob:') && src.includes('tiktok.com') && src.includes('/video/')) {
-                        console.log('Method 15: Found working video URL from another post:', src);
-                        // Use this as a template to construct our URL
-                        const urlParts = src.split('/');
-                        if (urlParts.length > 2) {
-                            // Extract the base pattern and try to apply it to our video ID
-                            const basePattern = urlParts.slice(0, -1).join('/') + '/';
-                            const newUrl = basePattern + videoId + '/';
-                            console.log('Method 15: Constructed URL using working pattern:', newUrl);
-                            videoSrc = newUrl;
-                            break;
+                        console.log('Method 11: Found working video URL pattern:', src);
+                        
+                        // Check if this is a CDN URL that might get blocked
+                        if (src.includes('v16-webapp-prime.tiktok.com') || src.includes('v19-webapp-prime.tiktok.com')) {
+                            console.log('Method 11: Skipping CDN URL that might get blocked');
+                            continue;
                         }
+                        
+                        // Use this working URL as our source
+                        videoSrc = src;
+                        console.log('Method 11: Using working video URL:', videoSrc);
+                        break;
                     }
                 }
             } catch (error) {
-                console.log('Method 15: Error looking for working patterns:', error);
+                console.log('Method 11: Error looking for working patterns:', error);
             }
         }
 
-        // Method 16: Try to use the post's direct link as a fallback
+        // Method 12: Use the post's direct TikTok page URL as final fallback (only if no actual video URL found)
         if (!videoSrc) {
-            console.log('Method 16: Using post link as fallback');
+            console.log('Method 12: Using post direct URL as final fallback');
             const postLink = postElement.querySelector('a[href*="/video/"]');
             if (postLink && postLink.href) {
-                console.log('Method 16: Using post link:', postLink.href);
+                console.log('Method 12: Using post link as final fallback:', postLink.href);
                 videoSrc = postLink.href;
             }
         }
 
-        // Method 14: Final fallback - search for any TikTok video URL in the entire page
+        // Method 13: Try to extract from TikTok's video player data attributes
         if (!videoSrc) {
-            console.log('Method 14: Final fallback - searching entire page');
-            const pageHTML = document.documentElement.innerHTML;
-            const allVideoUrls = pageHTML.match(/https:\/\/[^"'\s]+\.tiktok\.com\/[^"'\s]*video[^"'\s]*/g);
-            if (allVideoUrls) {
-                // Filter out blob URLs and find the first valid one
-                for (let url of allVideoUrls) {
-                    if (!url.startsWith('blob:') && url.includes('/video/')) {
-                        console.log('Method 14: Found fallback video URL:', url);
-                        videoSrc = url;
-                        break;
+            console.log('Method 13: Checking TikTok video player data attributes');
+            try {
+                // Look for video player containers that might have video URLs
+                const videoContainers = postElement.querySelectorAll('[class*="video"], [class*="player"], [data-e2e*="video"]');
+                for (let container of videoContainers) {
+                    // Check for data attributes that might contain video URLs
+                    const dataAttrs = ['data-video', 'data-src', 'data-url', 'data-href'];
+                    for (let attr of dataAttrs) {
+                        const value = container.getAttribute(attr);
+                        if (value && value.includes('tiktok.com') && !value.startsWith('blob:') && !value.includes('www.tiktok.com')) {
+                            console.log('Method 13: Found video URL in container data attribute:', value);
+                            videoSrc = value;
+                            break;
+                        }
+                    }
+                    if (videoSrc) break;
+                }
+            } catch (error) {
+                console.log('Method 13: Error checking video player data:', error);
+            }
+        }
+
+        // Method 14: Try to extract from TikTok's internal video state
+        if (!videoSrc) {
+            console.log('Method 14: Checking TikTok internal video state');
+            try {
+                // Look for any elements that might contain video state information
+                const stateElements = postElement.querySelectorAll('[data-state], [data-video-state], [data-media-state]');
+                for (let element of stateElements) {
+                    try {
+                        const state = JSON.parse(element.getAttribute('data-state') || element.getAttribute('data-video-state') || element.getAttribute('data-media-state') || '{}');
+                        if (state.videoUrl || state.video_url || state.src || state.url) {
+                            const url = state.videoUrl || state.video_url || state.src || state.url;
+                            if (url && url.includes('tiktok.com') && !url.startsWith('blob:') && !url.includes('www.tiktok.com')) {
+                                console.log('Method 14: Found video URL in state data:', url);
+                                videoSrc = url;
+                                break;
+                            }
+                        }
+                    } catch (parseError) {
+                        // Skip invalid JSON
+                        continue;
                     }
                 }
+            } catch (error) {
+                console.log('Method 14: Error checking video state:', error);
             }
         }
 
@@ -990,10 +1044,18 @@
                 console.log('WARNING: Found blob URL, resetting to null');
                 videoSrc = null;
             } else if (videoSrc.includes('v16-webapp-prime.tiktok.com') || videoSrc.includes('v19-webapp-prime.tiktok.com')) {
-                // Check if this is a CDN URL that might get blocked
+                // CDN URLs are likely to get blocked, try to find alternatives
                 console.log('WARNING: Found CDN URL that might get blocked:', videoSrc);
-                // Don't reset it yet, but mark it for special handling
-                videoSrc = videoSrc + ' (CDN_URL)';
+                
+                // Try to find a non-CDN alternative
+                const postLink = postElement.querySelector('a[href*="/video/"]');
+                if (postLink && postLink.href) {
+                    console.log('Replacing blocked CDN URL with post link:', postLink.href);
+                    videoSrc = postLink.href;
+                } else {
+                    console.log('No alternative found, keeping CDN URL but marking as potentially blocked');
+                    videoSrc = videoSrc + ' (POTENTIALLY_BLOCKED)';
+                }
             }
         }
 
@@ -1155,81 +1217,182 @@
         console.log('🔍 Attempting download with video info:', videoInfo);
         
         try {
-            // Method 1: Try to open video in new tab (most reliable)
+            // Method 1: Try to trigger download with chrome.downloads API (PRIORITY 1)
             try {
-                console.log('🔍 Method 1: Opening video in new tab');
-                const newTab = window.open(videoInfo.src, '_blank');
-                if (newTab) {
-                    console.log('🔍 Successfully opened video in new tab');
-                    return { success: true, method: 'new_tab', message: 'Video opened in new tab' };
+                console.log('🔍 Method 1: Using chrome.downloads API');
+                
+                // Check if we have a direct video URL
+                if (videoInfo.src && !videoInfo.src.includes('www.tiktok.com') && !videoInfo.src.includes('(POTENTIALLY_BLOCKED)')) {
+                    const filename = `tiktok_${videoInfo.username || 'video'}_${videoInfo.videoId || Date.now()}.mp4`;
+                    
+                    console.log('🔍 Attempting download with URL:', videoInfo.src);
+                    console.log('🔍 Filename:', filename);
+                    
+                    // Send message to background script to handle download
+                    const response = await chrome.runtime.sendMessage({
+                        action: 'downloadVideo',
+                        data: {
+                            url: videoInfo.src,
+                            filename: filename
+                        }
+                    });
+                    
+                    if (response && response.success) {
+                        console.log('🔍 Chrome downloads API successful');
+                        return { success: true, method: 'chrome_downloads', message: 'Download started successfully!' };
+                    } else {
+                        console.log('🔍 Chrome downloads API failed:', response);
+                    }
+                } else {
+                    console.log('🔍 Skipping chrome.downloads API - not a direct video URL');
                 }
             } catch (error) {
                 console.log('🔍 Method 1 failed:', error);
             }
             
-            // Method 2: Try to trigger download with chrome.downloads API
+            // Method 2: Try to create download link (PRIORITY 2)
             try {
-                console.log('🔍 Method 2: Using chrome.downloads API');
-                const filename = `tiktok_${videoInfo.username}_${videoInfo.videoId}.mp4`;
+                console.log('🔍 Method 2: Creating download link');
                 
-                // Send message to background script to handle download
-                const response = await chrome.runtime.sendMessage({
-                    action: 'downloadVideo',
-                    data: {
-                        url: videoInfo.src,
-                        filename: filename
-                    }
-                });
-                
-                if (response && response.success) {
-                    console.log('🔍 Chrome downloads API successful');
-                    return { success: true, method: 'chrome_downloads', message: 'Download started via Chrome' };
+                if (videoInfo.src && !videoInfo.src.includes('www.tiktok.com') && !videoInfo.src.includes('(POTENTIALLY_BLOCKED)')) {
+                    const link = document.createElement('a');
+                    link.href = videoInfo.src;
+                    link.download = `tiktok_${videoInfo.username || 'video'}_${videoInfo.videoId || Date.now()}.mp4`;
+                    link.target = '_blank';
+                    
+                    // Add to DOM temporarily
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    console.log('🔍 Download link created successfully');
+                    return { success: true, method: 'download_link', message: 'Download started via browser download' };
                 } else {
-                    console.log('🔍 Chrome downloads API failed:', response);
+                    console.log('🔍 Skipping download link - not a direct video URL');
                 }
             } catch (error) {
                 console.log('🔍 Method 2 failed:', error);
             }
             
-            // Method 3: Try to create download link (fallback)
+            // Method 3: Try to extract and download actual video file (PRIORITY 3)
             try {
-                console.log('🔍 Method 3: Creating download link');
-                const link = document.createElement('a');
-                link.href = videoInfo.src;
-                link.download = `tiktok_${videoInfo.username}_${videoInfo.videoId}.mp4`;
-                link.target = '_blank';
+                console.log('🔍 Method 3: Extracting actual video file for download');
                 
-                // Add to DOM temporarily
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                console.log('🔍 Download link created successfully');
-                return { success: true, method: 'download_link', message: 'Download link created' };
+                // Look for actual video elements with source URLs
+                const videoElement = post.querySelector('video');
+                if (videoElement) {
+                    console.log('🔍 Found video element, checking for sources');
+                    
+                    // Try to get the actual video source
+                    let videoSource = null;
+                    
+                    // Check source tags first
+                    const sources = videoElement.querySelectorAll('source');
+                    if (sources.length > 0) {
+                        for (let source of sources) {
+                            const src = source.src;
+                            if (src && !src.startsWith('blob:') && src.includes('tiktok.com')) {
+                                videoSource = src;
+                                console.log('🔍 Found video source from source tag:', videoSource);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Check video element's src attribute
+                    if (!videoSource && videoElement.src && !videoElement.src.startsWith('blob:')) {
+                        videoSource = videoElement.src;
+                        console.log('🔍 Found video source from video element:', videoSource);
+                    }
+                    
+                    // If we found a video source, try to download it
+                    if (videoSource) {
+                        console.log('🔍 Attempting download with extracted video source');
+                        
+                        // Try chrome.downloads API first
+                        try {
+                            const filename = `tiktok_${videoInfo.username || 'video'}_${videoInfo.videoId || Date.now()}.mp4`;
+                            const response = await chrome.runtime.sendMessage({
+                                action: 'downloadVideo',
+                                data: {
+                                    url: videoSource,
+                                    filename: filename
+                                }
+                            });
+                            
+                            if (response && response.success) {
+                                console.log('🔍 Download successful with extracted source');
+                                return { success: true, method: 'extracted_source_download', message: 'Download started successfully!' };
+                            }
+                        } catch (error) {
+                            console.log('🔍 Chrome downloads API failed for extracted source:', error);
+                        }
+                        
+                        // Try download link as fallback
+                        try {
+                            const link = document.createElement('a');
+                            link.href = videoSource;
+                            link.download = `tiktok_${videoInfo.username || 'video'}_${videoInfo.videoId || Date.now()}.mp4`;
+                            link.target = '_blank';
+                            
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            
+                            console.log('🔍 Download link created with extracted source');
+                            return { success: true, method: 'extracted_source_link', message: 'Download started via browser download' };
+                        } catch (error) {
+                            console.log('🔍 Download link failed for extracted source:', error);
+                        }
+                    }
+                }
             } catch (error) {
                 console.log('🔍 Method 3 failed:', error);
             }
             
-            // Method 4: Try to copy video URL to clipboard
+            // Method 4: Try to copy video URL to clipboard (PRIORITY 4)
             try {
                 console.log('🔍 Method 4: Copying video URL to clipboard');
-                await navigator.clipboard.writeText(videoInfo.src);
-                console.log('🔍 Video URL copied to clipboard');
-                return { success: true, method: 'clipboard', message: 'Video URL copied to clipboard' };
+                
+                let urlToCopy = videoInfo.src;
+                
+                // If we have a TikTok page URL, try to find the actual video URL
+                if (urlToCopy && urlToCopy.includes('www.tiktok.com') && urlToCopy.includes('/video/')) {
+                    // Look for actual video URLs in the post
+                    const videoElement = post.querySelector('video');
+                    if (videoElement) {
+                        const sources = videoElement.querySelectorAll('source');
+                        for (let source of sources) {
+                            const src = source.src;
+                            if (src && !src.startsWith('blob:') && src.includes('tiktok.com')) {
+                                urlToCopy = src;
+                                console.log('🔍 Using extracted video URL for clipboard:', urlToCopy);
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                if (urlToCopy) {
+                    await navigator.clipboard.writeText(urlToCopy);
+                    console.log('🔍 Video URL copied to clipboard');
+                    return { success: true, method: 'clipboard', message: 'Video URL copied to clipboard. You can paste it in a new tab to download.' };
+                }
             } catch (error) {
                 console.log('🔍 Method 4 failed:', error);
             }
             
-            // Method 5: Try to use the post's direct TikTok page URL as fallback
+            // Method 5: Try to open TikTok page in new tab (LAST RESORT)
             try {
-                console.log('🔍 Method 5: Using post direct URL as fallback');
-                const postLink = post.querySelector('a[href*="/video/"]');
-                if (postLink && postLink.href) {
-                    console.log('🔍 Opening post page in new tab:', postLink.href);
-                    const newTab = window.open(postLink.href, '_blank');
+                console.log('🔍 Method 5: Opening TikTok page as last resort');
+                
+                // Only do this if we have a TikTok page URL
+                if (videoInfo.src && videoInfo.src.includes('www.tiktok.com') && videoInfo.src.includes('/video/')) {
+                    console.log('🔍 Opening TikTok page in new tab for manual download');
+                    const newTab = window.open(videoInfo.src, '_blank');
                     if (newTab) {
-                        console.log('🔍 Successfully opened post page in new tab');
-                        return { success: true, method: 'post_page', message: 'Post page opened in new tab - you can download from there' };
+                        console.log('🔍 Successfully opened TikTok page in new tab');
+                        return { success: true, method: 'tiktok_page', message: 'TikTok page opened. Right-click on the video and select "Save video as..." to download.' };
                     }
                 }
             } catch (error) {
@@ -1237,7 +1400,7 @@
             }
             
             console.log('🔍 All download methods failed');
-            return { success: false, error: 'All download methods failed' };
+            return { success: false, error: 'Could not download video. Please try right-clicking on the video and selecting "Save video as..."' };
             
         } catch (error) {
             console.error('🔍 Error in downloadVideoAdvanced:', error);
