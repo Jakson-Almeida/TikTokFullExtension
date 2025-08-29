@@ -1604,7 +1604,15 @@
     };
 
     // Log successful initialization
-    console.log('TikTok Full Extension: Content script fully initialized and ready');
+    console.log('🔍 TikTok Full Extension: Content script fully initialized and ready');
+    console.log('🔍 Script ID set in window:', window[SCRIPT_ID]);
+    console.log('🔍 Window object keys:', Object.keys(window).filter(key => key.includes('tiktok')));
 }
 
+console.log('🔍 === IIFE EXECUTION END ===');
+console.log('🔍 IIFE completed at:', new Date().toISOString());
+
 })();
+
+console.log('🔍 === CONTENT SCRIPT LOADING DEBUG END ===');
+console.log('🔍 Content script file completed loading at:', new Date().toISOString());
