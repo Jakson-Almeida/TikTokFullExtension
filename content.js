@@ -328,21 +328,25 @@
                 // Create download button
                 const downloadBtn = document.createElement('button');
                 downloadBtn.className = 'tiktok-download-btn';
-                downloadBtn.innerHTML = '⬇️ Download';
+                downloadBtn.innerHTML = '⬇️';
+                downloadBtn.title = 'Download Video';
                 downloadBtn.style.cssText = `
                     position: absolute;
                     top: 10px;
                     right: 10px;
-                    background: #fe2c55;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    background: rgba(0, 0, 0, 0.7);
+                    border: 2px solid white;
                     color: white;
-                    border: none;
-                    border-radius: 4px;
-                    padding: 8px 12px;
-                    font-size: 12px;
-                    font-weight: bold;
+                    font-size: 16px;
                     cursor: pointer;
                     z-index: 1000;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    transition: 0.3s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 `;
                 
                 // Add click event
@@ -401,24 +405,28 @@
             const postsToUse = potentialPosts.slice(0, 5);
             postsToUse.forEach((post, index) => {
                 try {
-                    const downloadBtn = document.createElement('button');
-                    downloadBtn.className = 'tiktok-download-btn';
-                    downloadBtn.innerHTML = '⬇️ Download';
-                    downloadBtn.style.cssText = `
-                        position: absolute;
-                        top: 10px;
-                        right: 10px;
-                        background: #fe2c55;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        padding: 8px 12px;
-                        font-size: 12px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        z-index: 1000;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                    `;
+                                         const downloadBtn = document.createElement('button');
+                     downloadBtn.className = 'tiktok-download-btn';
+                     downloadBtn.innerHTML = '⬇️';
+                     downloadBtn.title = 'Download Video';
+                     downloadBtn.style.cssText = `
+                         position: absolute;
+                         top: 10px;
+                         right: 10px;
+                         width: 36px;
+                         height: 36px;
+                         border-radius: 50%;
+                         background: rgba(0, 0, 0, 0.7);
+                         border: 2px solid white;
+                         color: white;
+                         font-size: 16px;
+                         cursor: pointer;
+                         z-index: 1000;
+                         transition: 0.3s;
+                         display: flex;
+                         align-items: center;
+                         justify-content: center;
+                     `;
                     
                     downloadBtn.addEventListener('click', (e) => {
                         e.preventDefault();
