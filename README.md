@@ -1,25 +1,40 @@
 # TikTok Full Extension
 
-A Chrome extension designed to work with different tools on TikTok pages, including authentication status checker and video downloader.
+A powerful Chrome extension that enhances TikTok with advanced video downloading, post link copying, and authentication management features.
 
-## Features
+## ✨ Features
 
-### Current Features
-- **Authentication Status Checker**: Detects whether the user is logged into TikTok
-- **Video Download Tool**: Download TikTok videos with customizable options
-- **Real-time Monitoring**: Continuously monitors authentication status
-- **Page Type Detection**: Identifies different types of TikTok pages (Home, Profile, Video, etc.)
-- **User Information Display**: Shows user ID and username when authenticated
-- **Modern UI**: Clean and responsive popup interface with tabbed navigation
-- **Download Buttons**: Automatically injects download buttons into TikTok posts
+### 🔐 Authentication & Monitoring
+- **Real-time Authentication Detection**: Automatically detects TikTok login status
+- **Smart Page Type Recognition**: Identifies Home, Profile, Video, Search, and other TikTok pages
+- **User Information Display**: Shows user ID, username, and current page details
+- **Auto-refresh**: Continuously monitors authentication status every 5 seconds
 
-### Planned Features
-- Enhanced video download capabilities
-- Content analysis tools
-- User analytics
-- Enhanced TikTok interactions
+### 🎥 Advanced Video Download System
+- **Toggle Download Mode**: Single button to enable/disable download functionality
+- **Smart Button Injection**: Automatically adds download buttons to all TikTok posts
+- **Multiple Video Detection Strategies**: 8 advanced methods to find direct video URLs
+- **Direct Video Access**: Opens videos in new tabs for easy downloading
+- **Fallback Support**: Multiple fallback methods if direct video URLs aren't available
 
-## Installation
+### 🔗 Post Link Management
+- **Copy Post Links**: One-click copying of TikTok post URLs to clipboard
+- **Visual Feedback**: Animated confirmation when links are copied
+- **Smart Link Detection**: Automatically finds the correct post URL for each video
+
+### 🚀 Auto-Start & Background Operation
+- **Auto-start When Authenticated**: Download mode activates automatically for logged-in users
+- **Background Operation**: Works without requiring popup interaction
+- **Persistent Settings**: Saves preferences in local storage
+- **Smart State Management**: Remembers and restores user preferences
+
+### 🎨 Modern User Interface
+- **Tabbed Navigation**: Clean, organized interface with Authentication, Download Tool, and Settings tabs
+- **Responsive Design**: Optimized for different screen sizes
+- **Visual Status Indicators**: Color-coded authentication and download status
+- **Intuitive Controls**: Easy-to-use buttons and toggles
+
+## 🚀 Installation
 
 ### Method 1: Load Unpacked Extension (Development)
 
@@ -33,12 +48,12 @@ A Chrome extension designed to work with different tools on TikTok pages, includ
 
 *Coming soon - the extension will be available on the Chrome Web Store*
 
-## Usage
+## 📖 Usage Guide
 
-### Authentication Tab
+### 🔐 Authentication Tab
 1. **Navigate to TikTok**: Go to any TikTok page (e.g., [tiktok.com](https://www.tiktok.com))
 2. **Click the Extension Icon**: Click the TikTok Full Extension icon in your Chrome toolbar
-3. **View Status**: The popup will show your authentication status:
+3. **View Status**: The popup shows your authentication status:
    - ✅ **Authenticated**: You are logged into TikTok
    - ❌ **Not Authenticated**: You are not logged in
    - 🔄 **Checking**: The extension is verifying your status
@@ -46,112 +61,116 @@ A Chrome extension designed to work with different tools on TikTok pages, includ
    - **Refresh Status**: Manually check authentication status
    - **Check Current Page**: Get detailed information about the current TikTok page
 
-### Download Tool Tab
-1. **Enable Download Mode**: Click "Enable Download Mode" to activate video downloading
-2. **Configure Options**:
-   - **Include Watermark**: Choose whether to download with or without TikTok watermark
-   - **Include Audio**: Choose whether to include audio in the download
-3. **Download Videos**: Download buttons (📥) will appear on all TikTok posts
-4. **Click Download**: Click the download button on any post to download the video
+### 🎥 Download Tool Tab
+1. **Toggle Download Mode**: 
+   - **First Click**: Enables download mode, shows "Download Mode Active" (green)
+   - **Second Click**: Disables download mode, shows "Enable Download Mode" (normal)
+   - **Continues toggling** between states
+2. **Auto-start Control**: Toggle whether download mode activates automatically when authenticated
+3. **Download Buttons**: Circular ⬇️ buttons appear on all TikTok posts when enabled
+4. **Copy Link Buttons**: Circular 🔗 buttons appear next to download buttons for easy link copying
 
-### Settings Tab
+### ⚙️ Settings Tab
 - **Auto-check authentication**: Automatically check authentication status
 - **Show download buttons**: Control whether download buttons appear on posts
 - **Download quality**: Choose video quality (High, Medium, Low)
 - **Save/Reset**: Save your preferences or reset to defaults
 
-## How It Works
+## 🔧 How It Works
 
-### Authentication Detection Methods
+### 🎯 Video Detection Strategies
+
+The extension uses 8 advanced methods to find direct video URLs:
+
+1. **TikTok Internal Data**: Extracts video URLs from `window.__INITIAL_STATE__`
+2. **Video Element Sources**: Checks `<video>` element `src` and `currentSrc` attributes
+3. **URL Pattern Construction**: Builds direct CDN URLs using TikTok's video ID patterns
+4. **Video Link Extraction**: Finds and processes `a[href*="/video/"]` links
+5. **Image-to-Video Conversion**: Converts TikTok CDN thumbnail URLs to video URLs
+6. **Data Attributes**: Searches for `data-video-id`, `data-video-url`, `data-video-src`
+7. **Script Content Parsing**: Extracts video URLs from embedded script tags
+8. **Fallback Methods**: Opens TikTok post pages in new tabs if direct video URLs aren't found
+
+### 🔍 Authentication Detection Methods
 
 The extension uses multiple methods to detect authentication status:
 
-1. **Cookie Analysis**: Checks for TikTok authentication cookies
-2. **DOM Inspection**: Looks for user-specific elements on the page
+1. **Cookie Analysis**: Checks for TikTok authentication cookies (`tt_chain_token`, `ttwid`, `msToken`)
+2. **DOM Inspection**: Looks for user-specific elements (profile icons, avatars)
 3. **Content Analysis**: Analyzes page content for authentication indicators
+4. **Login Button Detection**: Identifies login/signin buttons to determine unauthenticated state
 
-### Video Download System
+### 🎨 Button Injection System
 
-The download functionality works by:
+The download system works through:
 
-1. **Button Injection**: Automatically adds download buttons to TikTok posts
-2. **Video Detection**: Identifies video elements and extracts source URLs
-3. **Download Processing**: Handles the download process with user preferences
-4. **Status Feedback**: Shows download progress and completion status
+1. **Smart Post Detection**: Multiple selector strategies to find TikTok posts
+2. **Dynamic Button Injection**: Automatically adds buttons to new content as it loads
+3. **Retry Mechanisms**: Multiple injection attempts with different timing strategies
+4. **MutationObserver**: Watches for dynamic content changes and re-injects buttons
+5. **Alternative Injection**: Fallback methods if standard selectors don't work
 
-### Page Type Detection
-
-The extension automatically detects different TikTok page types:
-- Home Page
-- User Profile
-- Video Page
-- For You Page
-- Following Page
-- Trending Page
-- Search Results
-- Upload Page
-- Inbox
-- Settings
-
-## File Structure
+## 📁 File Structure
 
 ```
 TikTokFullExtension/
-├── manifest.json          # Extension configuration
-├── popup.html            # Popup interface HTML with tabs
-├── popup.css             # Popup styling and animations
-├── popup.js              # Popup functionality and tab management
-├── content.js            # Content script for TikTok pages and download functionality
-├── background.js         # Background service worker
+├── manifest.json          # Extension configuration (Manifest V3)
+├── popup.html            # Popup interface HTML with tabbed navigation
+├── popup.css             # Modern styling with animations and responsive design
+├── popup.js              # Popup functionality, tab management, and toggle logic
+├── content.js            # Content script with advanced video detection and button injection
+├── background.js         # Background service worker for extension lifecycle
 ├── icons/                # Extension icons
 │   ├── icon.svg          # Source SVG icon
 │   ├── icon16.png        # 16x16 PNG icon
 │   ├── icon48.png        # 48x48 PNG icon
 │   └── icon128.png       # 128x128 PNG icon
-├── README.md             # This file
+├── README.md             # This comprehensive documentation
 └── INSTALLATION.md       # Quick installation guide
 ```
 
-## Technical Details
+## 🛠️ Technical Details
 
 ### Manifest Version 3
 This extension uses Chrome's latest Manifest V3, which provides:
-- Better security
-- Improved performance
-- Service worker-based background scripts
+- **Enhanced Security**: Better isolation and permission management
+- **Improved Performance**: Service worker-based background scripts
+- **Modern APIs**: Access to latest Chrome extension capabilities
 
 ### Permissions
 - `activeTab`: Access to the currently active tab
 - `storage`: Local storage for extension data and settings
 - `downloads`: Permission to download files
-- `host_permissions`: Access to TikTok domains
+- `host_permissions`: Access to TikTok domains (`https://www.tiktok.com/*`)
 
 ### Content Scripts
-The content script runs on all TikTok pages and:
-- Monitors page changes
-- Detects authentication status
-- Injects download buttons
-- Handles video downloads
-- Communicates with the popup
+The content script runs on all TikTok pages and provides:
+- **Real-time Monitoring**: Continuous authentication and content monitoring
+- **Smart Button Injection**: Intelligent placement of download and copy link buttons
+- **Advanced Video Detection**: Multiple strategies to find direct video URLs
+- **Dynamic Content Handling**: Responds to TikTok's dynamic content loading
+- **Communication Bridge**: Seamless communication between popup and TikTok pages
 
-## Development
+## 🚀 Development
 
 ### Prerequisites
-- Google Chrome browser
+- Google Chrome browser (latest version)
 - Basic knowledge of HTML, CSS, and JavaScript
+- Understanding of Chrome Extension APIs
 
 ### Local Development
 1. Make changes to the source files
 2. Go to `chrome://extensions/`
 3. Click the refresh button on the extension card
-4. Test your changes
+4. Test your changes on TikTok pages
 
 ### Debugging
-- Use Chrome DevTools to inspect the popup
-- Check the console for content script logs
-- Use the background script console in the extensions page
+- **Popup Debugging**: Use Chrome DevTools to inspect the popup
+- **Content Script Logging**: Check the console for detailed video detection logs
+- **Background Script**: Use the background script console in the extensions page
+- **Console Logs**: Extensive logging for troubleshooting video detection and button injection
 
-## Icon Requirements
+## 🎨 Icon Requirements
 
 **Important**: The current icon files are placeholders. You need to:
 
@@ -165,7 +184,7 @@ The content script runs on all TikTok pages and:
    - [CloudConvert](https://cloudconvert.com/svg-to-png)
    - [SVG to PNG](https://svgtopng.com/)
 
-## Troubleshooting
+## 🔧 Troubleshooting
 
 ### Common Issues
 
@@ -173,52 +192,67 @@ The content script runs on all TikTok pages and:
    - Ensure you're on a TikTok page
    - Refresh the page
    - Check if the extension is enabled
+   - Look for console errors
 
 2. **Download Buttons Not Appearing**
    - Go to the Download Tool tab
-   - Click "Enable Download Mode"
+   - Click "Enable Download Mode" (button should turn green)
    - Refresh the TikTok page
-   - Check if "Show download buttons" is enabled in Settings
+   - Check console for injection logs
 
 3. **Downloads Not Working**
-   - Ensure you have download permissions enabled
-   - Check browser download settings
+   - The extension opens videos in new tabs for manual downloading
+   - Check if popup blockers are interfering
    - Some videos may have download restrictions
 
 4. **Authentication Status Not Updating**
    - Click the "Refresh Status" button
    - Wait a few seconds for automatic updates
-   - Check browser console for errors
+   - Check browser console for error messages
 
 ### Error Messages
 
 - **"Not on TikTok"**: You're not currently on a TikTok page
 - **"Error occurred"**: There was an issue checking authentication
-- **"Download failed"**: Video download could not be completed
+- **"Could not establish connection"**: Content script communication issue - refresh the page
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+4. Test thoroughly on TikTok pages
+5. Submit a pull request with detailed description
 
-## License
+## 📄 License
 
 This project is open source and available under the [MIT License](LICENSE).
 
-## Support
+## 🆘 Support
 
 If you encounter issues or have questions:
-1. Check the troubleshooting section
-2. Review the console for error messages
-3. Create an issue on GitHub
+1. Check the troubleshooting section above
+2. Review the browser console for detailed error messages
+3. Check the extension's console logs for debugging information
+4. Create an issue on GitHub with:
+   - Browser version
+   - Extension version
+   - Error messages
+   - Steps to reproduce
 
-## Version History
+## 📈 Version History
 
-- **v1.0.0**: Initial release with authentication status checker and video downloader
+- **v1.0.1**: Enhanced UI, removed watermark/audio options, improved video detection
+- **v1.0.0**: Initial release with authentication status checker and basic video downloader
+
+## 🔮 Future Enhancements
+
+- **Enhanced Video Quality Options**: More granular quality control
+- **Batch Download Support**: Download multiple videos at once
+- **Advanced Content Analysis**: Better video metadata extraction
+- **User Analytics Dashboard**: Track download history and preferences
+- **Social Features**: Share download links and recommendations
 
 ---
 
-**Note**: This extension is designed for educational and personal use. Please respect TikTok's terms of service and use responsibly. Video downloads are subject to TikTok's content policies and may not work for all videos due to technical limitations.
+**Note**: This extension is designed for educational and personal use. Please respect TikTok's terms of service and use responsibly. Video downloads are subject to TikTok's content policies and may not work for all videos due to technical limitations. The extension opens videos in new tabs for manual downloading rather than direct file downloads to comply with browser security policies.
