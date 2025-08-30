@@ -1,6 +1,6 @@
 # TikTok Full Extension
 
-A powerful Chrome extension that enhances TikTok with advanced video downloading, post link copying, and authentication management features.
+A powerful Chrome extension that enhances TikTok with advanced video downloading, post link copying, and authentication management features. Now with **API-powered direct downloads** and **smart fallback systems**.
 
 ## ✨ Features
 
@@ -16,6 +16,8 @@ A powerful Chrome extension that enhances TikTok with advanced video downloading
 - **Multiple Video Detection Strategies**: 8 advanced methods to find direct video URLs
 - **Direct Video Access**: Opens videos in new tabs for easy downloading
 - **Fallback Support**: Multiple fallback methods if direct video URLs aren't available
+- **🎯 NEW: API Download Method**: Choose between API-powered direct downloads or browser-based methods
+- **🔄 Smart API Fallback**: Multiple working TikTok download APIs with automatic fallback
 
 ### 🔗 Post Link Management
 - **Copy Post Links**: One-click copying of TikTok post URLs to clipboard
@@ -33,6 +35,7 @@ A powerful Chrome extension that enhances TikTok with advanced video downloading
 - **Responsive Design**: Optimized for different screen sizes
 - **Visual Status Indicators**: Color-coded authentication and download status
 - **Intuitive Controls**: Easy-to-use buttons and toggles
+- **🎯 Download Method Selector**: Choose your preferred download approach
 
 ## 🚀 Installation
 
@@ -67,8 +70,11 @@ A powerful Chrome extension that enhances TikTok with advanced video downloading
    - **Second Click**: Disables download mode, shows "Enable Download Mode" (normal)
    - **Continues toggling** between states
 2. **Auto-start Control**: Toggle whether download mode activates automatically when authenticated
-3. **Download Buttons**: Circular ⬇️ buttons appear on all TikTok posts when enabled
-4. **Copy Link Buttons**: Circular 🔗 buttons appear next to download buttons for easy link copying
+3. **🎯 Download Method Selection**: Choose between:
+   - **API Download (Direct Links)**: Uses external TikTok download APIs for direct video links
+   - **Browser Download (New Tab)**: Opens videos in new tabs using browser-based detection
+4. **Download Buttons**: Circular ⬇️ buttons appear on all TikTok posts when enabled
+5. **Copy Link Buttons**: Circular 🔗 buttons appear next to download buttons for easy link copying
 
 ### ⚙️ Settings Tab
 - **Auto-check authentication**: Automatically check authentication status
@@ -90,6 +96,28 @@ The extension uses 8 advanced methods to find direct video URLs:
 6. **Data Attributes**: Searches for `data-video-id`, `data-video-url`, `data-video-src`
 7. **Script Content Parsing**: Extracts video URLs from embedded script tags
 8. **Fallback Methods**: Opens TikTok post pages in new tabs if direct video URLs aren't found
+
+### 🚀 NEW: API Download System
+
+The extension now includes a powerful API download system with multiple fallback options:
+
+#### **API Download Method**
+- **Multiple API Endpoints**: Tries several working TikTok download APIs
+- **Automatic Fallback**: If one API fails, automatically tries the next
+- **Direct Download Links**: Provides direct video URLs without watermarks
+- **Smart Response Parsing**: Handles different API response formats
+- **User Choice**: Download with or without watermark, or cover image
+
+#### **Working APIs Included**
+1. **Simple TikTok Downloader**: Basic API for direct video links
+2. **TikWM API**: Reliable TikTok download service
+3. **TikTok Downloader Service**: RapidAPI-based service for enhanced features
+
+#### **API Response Handling**
+- **Multiple Format Support**: Handles various API response structures
+- **URL Extraction**: Automatically finds video, watermark, and cover URLs
+- **Fallback to Browser**: If all APIs fail, seamlessly switches to browser method
+- **User Feedback**: Shows processing status and error messages
 
 ### 🔍 Authentication Detection Methods
 
@@ -150,6 +178,7 @@ The content script runs on all TikTok pages and provides:
 - **Advanced Video Detection**: Multiple strategies to find direct video URLs
 - **Dynamic Content Handling**: Responds to TikTok's dynamic content loading
 - **Communication Bridge**: Seamless communication between popup and TikTok pages
+- **🎯 API Integration**: Seamless integration with external TikTok download APIs
 
 ## 🚀 Development
 
@@ -169,6 +198,7 @@ The content script runs on all TikTok pages and provides:
 - **Content Script Logging**: Check the console for detailed video detection logs
 - **Background Script**: Use the background script console in the extensions page
 - **Console Logs**: Extensive logging for troubleshooting video detection and button injection
+- **🎯 API Debugging**: Detailed logs for API calls and responses
 
 ## 🎨 Icon Requirements
 
@@ -201,7 +231,8 @@ The content script runs on all TikTok pages and provides:
    - Check console for injection logs
 
 3. **Downloads Not Working**
-   - The extension opens videos in new tabs for manual downloading
+   - **API Method**: Check console for API call logs and error messages
+   - **Browser Method**: The extension opens videos in new tabs for manual downloading
    - Check if popup blockers are interfering
    - Some videos may have download restrictions
 
@@ -210,11 +241,18 @@ The content script runs on all TikTok pages and provides:
    - Wait a few seconds for automatic updates
    - Check browser console for error messages
 
+5. **🎯 API Download Issues**
+   - Check console for API call attempts and responses
+   - If APIs fail, the extension automatically falls back to browser method
+   - Some TikTok videos may not be accessible via APIs due to restrictions
+
 ### Error Messages
 
 - **"Not on TikTok"**: You're not currently on a TikTok page
 - **"Error occurred"**: There was an issue checking authentication
 - **"Could not establish connection"**: Content script communication issue - refresh the page
+- **"API failed, using browser method"**: API calls failed, falling back to browser download
+- **"All APIs failed"**: All external APIs are unavailable, using browser method
 
 ## 🤝 Contributing
 
@@ -242,6 +280,8 @@ If you encounter issues or have questions:
 
 ## 📈 Version History
 
+- **v1.1.0**: 🎯 **NEW API Download System** - Multiple working TikTok download APIs with smart fallback
+- **v1.0.2**: Enhanced download method selector and improved API integration
 - **v1.0.1**: Enhanced UI, removed watermark/audio options, improved video detection
 - **v1.0.0**: Initial release with authentication status checker and basic video downloader
 
@@ -252,7 +292,13 @@ If you encounter issues or have questions:
 - **Advanced Content Analysis**: Better video metadata extraction
 - **User Analytics Dashboard**: Track download history and preferences
 - **Social Features**: Share download links and recommendations
+- **🎯 Additional API Providers**: More TikTok download API options
+- **Smart API Selection**: Automatic selection of best-performing APIs
 
 ---
 
-**Note**: This extension is designed for educational and personal use. Please respect TikTok's terms of service and use responsibly. Video downloads are subject to TikTok's content policies and may not work for all videos due to technical limitations. The extension opens videos in new tabs for manual downloading rather than direct file downloads to comply with browser security policies.
+**Note**: This extension is designed for educational and personal use. Please respect TikTok's terms of service and use responsibly. Video downloads are subject to TikTok's content policies and may not work for all videos due to technical limitations. 
+
+**API Method**: The API download method provides direct video links when available, with automatic fallback to browser-based methods if APIs are unavailable or fail.
+
+**Browser Method**: The browser method opens videos in new tabs for manual downloading to comply with browser security policies.
