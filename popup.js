@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const autoCheckAuth = document.getElementById('autoCheckAuth');
     const showDownloadBtns = document.getElementById('showDownloadBtns');
     const downloadQuality = document.getElementById('downloadQuality');
+    const downloadMethod = document.getElementById('downloadMethod');
 
     // Initialize popup
     initializePopup();
@@ -301,7 +302,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Send message to content script to enable download mode
             console.log('14. Sending enableDownloadMode message...');
             const downloadOptions = {
-                quality: downloadQuality.value
+                quality: downloadQuality.value,
+                method: downloadMethod.value
             };
             console.log('14a. Download options:', downloadOptions);
             
@@ -459,7 +461,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const settings = {
             autoCheckAuth: autoCheckAuth.checked,
             showDownloadBtns: showDownloadBtns.checked,
-            downloadQuality: downloadQuality.value
+            downloadQuality: downloadQuality.value,
+            downloadMethod: downloadMethod.value
         };
 
         try {
@@ -477,6 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
             autoCheckAuth.checked = true;
             showDownloadBtns.checked = true;
             downloadQuality.value = 'medium';
+            downloadMethod.value = 'api';
 
             
             // Save default settings
@@ -492,6 +496,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 autoCheckAuth.checked = settings.autoCheckAuth !== undefined ? settings.autoCheckAuth : true;
                 showDownloadBtns.checked = settings.showDownloadBtns !== undefined ? settings.showDownloadBtns : true;
                 downloadQuality.value = settings.downloadQuality || 'medium';
+                downloadMethod.value = settings.downloadMethod || 'api';
 
             }
         } catch (error) {
