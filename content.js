@@ -813,66 +813,158 @@
         }
     }
 
+    // Helper function to extract TikTok post URL from a post element
+    function extractPostUrl(postElement) {
+        // Try multiple selectors to find the post URL
+        const selectors = [
+            'a[href*="/video/"]',
+            'a[href*="/@"]',
+            'a[href*="tiktok.com"]',
+            '[data-e2e="user-post-item"] a',
+            '[data-e2e="browse-video"] a'
+        ];
+
+        for (const selector of selectors) {
+            const link = postElement.querySelector(selector);
+            if (link && link.href) {
+                // Ensure we have a full TikTok URL
+                let url = link.href;
+                if (url.startsWith('/')) {
+                    url = 'https://www.tiktok.com' + url;
+                } else if (!url.startsWith('http')) {
+                    url = 'https://www.tiktok.com/' + url;
+                }
+                console.log('TikTok Full Extension: Extracted post URL:', url);
+                return url;
+            }
+        }
+
+        // Fallback: try to construct URL from data attributes
+        const videoId = postElement.getAttribute('data-video-id') || 
+                       postElement.querySelector('[data-video-id]')?.getAttribute('data-video-id');
+        
+        if (videoId) {
+            const url = `https://www.tiktok.com/@user/video/${videoId}`;
+            console.log('TikTok Full Extension: Constructed post URL from video ID:', url);
+            return url;
+        }
+
+        console.log('TikTok Full Extension: Could not extract post URL from element');
+        return null;
+    }
+
     async function downloadVideoViaAPI(postElement) {
         console.log('TikTok Full Extension: API download method called');
         
         try {
-            // Get TikTok post URL
-            const videoLink = postElement.querySelector('a[href*="/video/"]');
-            if (!videoLink || !videoLink.href) {
-                console.log('TikTok Full Extension: No video link found for API download');
-                // Fallback to browser method
+            const postUrl = extractPostUrl(postElement);
+            if (!postUrl) {
+                console.log('TikTok Full Extension: Could not extract post URL, falling back to browser method');
                 downloadVideo(postElement);
                 return;
             }
-            
-            const tiktokUrl = videoLink.href;
-            console.log('TikTok Full Extension: TikTok URL for API:', tiktokUrl);
-            
-            // Show loading feedback
+
+            console.log('TikTok Full Extension: Attempting API download for:', postUrl);
             showDownloadFeedback(postElement, '🔄 Processing...', 'info');
-            
-            // Call PrimeApi to get download links
-            const apiResponse = await fetch('https://primeapi.net/api/tiktok/download', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+
+            // Try multiple TikTok download APIs as fallbacks
+            const apis = [
+                {
+                    name: 'TikTok Downloader API',
+                    url: 'https://api.tiktokv.com/aweme/v1/play/',
+                    method: 'GET',
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
                 },
-                body: JSON.stringify({
-                    url: tiktokUrl
-                })
-            });
-            
-            if (!apiResponse.ok) {
-                throw new Error(`API request failed: ${apiResponse.status}`);
+                {
+                    name: 'TikWM API',
+                    url: 'https://www.tikwm.com/api/',
+                    method: 'POST',
+                    body: JSON.stringify({ url: postUrl }),
+                    headers: { 'Content-Type': 'application/json' }
+                },
+                {
+                    name: 'TikTok Downloader Service',
+                    url: 'https://tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com/vid/index',
+                    method: 'GET',
+                    headers: { 
+                        'X-RapidAPI-Key': 'demo-key',
+                        'X-RapidAPI-Host': 'tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com'
+                    },
+                    params: { url: postUrl }
+                }
+            ];
+
+            let apiResponse = null;
+            let workingApi = null;
+
+            for (const api of apis) {
+                try {
+                    console.log(`TikTok Full Extension: Trying ${api.name}...`);
+                    
+                    let url = api.url;
+                    const options = {
+                        method: api.method,
+                        headers: api.headers
+                    };
+
+                    if (api.body) {
+                        options.body = api.body;
+                    }
+
+                    // Handle GET requests with params
+                    if (api.method === 'GET' && api.params) {
+                        const urlParams = new URLSearchParams(api.params);
+                        url = `${api.url}?${urlParams.toString()}`;
+                    }
+
+                    const response = await fetch(url, options);
+                    
+                    if (response.ok) {
+                        apiResponse = await response.json();
+                        workingApi = api.name;
+                        console.log(`TikTok Full Extension: ${api.name} succeeded:`, apiResponse);
+                        break;
+                    } else {
+                        console.log(`TikTok Full Extension: ${api.name} failed with status:`, response.status);
+                    }
+                } catch (error) {
+                    console.log(`TikTok Full Extension: ${api.name} error:`, error.message);
+                }
             }
-            
-            const apiData = await apiResponse.json();
-            console.log('TikTok Full Extension: API response:', apiData);
-            
-            if (apiData.success && apiData.data) {
-                // Show download options modal
-                showDownloadOptionsModal(postElement, apiData.data, tiktokUrl);
+
+            if (apiResponse && workingApi) {
+                console.log('TikTok Full Extension: API download successful, showing options');
+                showDownloadOptionsModal(postElement, apiResponse, postUrl, workingApi);
             } else {
-                throw new Error(apiData.message || 'API request failed');
+                console.log('TikTok Full Extension: All APIs failed, falling back to browser method');
+                showDownloadFeedback(postElement, '❌ API failed, using browser method', 'error');
+                
+                // Wait 2 seconds then fallback to browser method
+                setTimeout(() => {
+                    downloadVideo(postElement);
+                }, 2000);
             }
-            
+
         } catch (error) {
             console.error('TikTok Full Extension: API download error:', error);
             showDownloadFeedback(postElement, '❌ API Error', 'error');
             
-            // Fallback to browser method after delay
+            // Fallback to browser method after error
             setTimeout(() => {
-                console.log('TikTok Full Extension: Falling back to browser method');
                 downloadVideo(postElement);
             }, 2000);
         }
     }
 
-    function showDownloadOptionsModal(postElement, apiData, originalUrl) {
-        // Create modal container
+    function showDownloadOptionsModal(postElement, apiData, originalUrl, apiName) {
+        // Remove existing modal if any
+        const existingModal = document.getElementById('tiktok-download-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
         const modal = document.createElement('div');
-        modal.className = 'tiktok-download-modal';
+        modal.id = 'tiktok-download-modal';
         modal.style.cssText = `
             position: fixed;
             top: 0;
@@ -881,89 +973,154 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.8);
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             z-index: 10000;
+            font-family: Arial, sans-serif;
         `;
-        
-        // Create modal content
+
         const modalContent = document.createElement('div');
         modalContent.style.cssText = `
             background: white;
-            border-radius: 12px;
-            padding: 24px;
-            max-width: 400px;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
             width: 90%;
             text-align: center;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         `;
-        
-        // Modal header
-        const header = document.createElement('h3');
-        header.textContent = 'Download Options';
+
+        const header = document.createElement('h2');
+        header.textContent = `Download Options (${apiName || 'API'})`;
         header.style.cssText = `
-            margin: 0 0 16px 0;
+            margin: 0 0 20px 0;
             color: #333;
-            font-size: 18px;
+            font-size: 24px;
         `;
-        
-        // Download buttons container
-        const buttonsContainer = document.createElement('div');
-        buttonsContainer.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin: 20px 0;
+
+        const info = document.createElement('p');
+        info.textContent = 'Select your preferred download option:';
+        info.style.cssText = `
+            margin: 0 0 25px 0;
+            color: #666;
+            font-size: 16px;
         `;
-        
-        // Add download buttons based on API response
+
+        modalContent.appendChild(header);
+        modalContent.appendChild(info);
+
+        // Create download buttons based on API response
+        const downloadButtons = [];
+
+        // Try to extract video URLs from different API response formats
+        let videoUrl = null;
+        let watermarkUrl = null;
+        let coverUrl = null;
+
         if (apiData.play) {
-            const noWatermarkBtn = createDownloadButton('Download Without Watermark', apiData.play, 'success');
-            buttonsContainer.appendChild(noWatermarkBtn);
+            videoUrl = apiData.play;
+        } else if (apiData.data && apiData.data.play) {
+            videoUrl = apiData.data.play;
+        } else if (apiData.video && apiData.video.play_addr) {
+            videoUrl = apiData.video.play_addr.url_list && apiData.video.play_addr.url_list[0];
         }
-        
+
         if (apiData.play_watermark) {
-            const watermarkBtn = createDownloadButton('Download With Watermark', apiData.play_watermark, 'primary');
-            buttonsContainer.appendChild(watermarkBtn);
+            watermarkUrl = apiData.play_watermark;
+        } else if (apiData.data && apiData.data.play_watermark) {
+            watermarkUrl = apiData.data.play_watermark;
         }
-        
+
         if (apiData.cover) {
-            const coverBtn = createDownloadButton('Download Cover Image', apiData.cover, 'secondary');
-            buttonsContainer.appendChild(coverBtn);
+            coverUrl = apiData.cover;
+        } else if (apiData.data && apiData.data.cover) {
+            coverUrl = apiData.data.cover;
         }
-        
-        // Close button
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Close';
-        closeBtn.style.cssText = `
-            background: #6c757d;
+
+        // Add download buttons for available options
+        if (videoUrl) {
+            downloadButtons.push(createDownloadButton('🎬 Download Without Watermark', videoUrl, 'primary'));
+        }
+
+        if (watermarkUrl) {
+            downloadButtons.push(createDownloadButton('💧 Download With Watermark', watermarkUrl, 'secondary'));
+        }
+
+        if (coverUrl) {
+            downloadButtons.push(createDownloadButton('🖼️ Download Cover Image', coverUrl, 'tertiary'));
+        }
+
+        // If no specific URLs found, try to use the original API response
+        if (downloadButtons.length === 0) {
+            console.log('TikTok Full Extension: No specific URLs found in API response, creating generic buttons');
+            
+            // Create a generic download button that opens the API response in a new tab
+            if (apiData.url) {
+                downloadButtons.push(createDownloadButton('🔗 Open Download Link', apiData.url, 'primary'));
+            } else {
+                // Fallback: show the API response data for debugging
+                const debugInfo = document.createElement('div');
+                debugInfo.style.cssText = `
+                    background: #f5f5f5;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 15px 0;
+                    text-align: left;
+                    font-family: monospace;
+                    font-size: 12px;
+                    max-height: 200px;
+                    overflow-y: auto;
+                `;
+                debugInfo.textContent = `API Response: ${JSON.stringify(apiData, null, 2)}`;
+                modalContent.appendChild(debugInfo);
+            }
+        }
+
+        // Add all download buttons
+        downloadButtons.forEach(button => {
+            modalContent.appendChild(button);
+            modalContent.appendChild(document.createElement('br'));
+        });
+
+        // Add close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.cssText = `
+            background: #666;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
-            margin-top: 16px;
+            font-size: 16px;
+            margin-top: 20px;
+            transition: background 0.3s;
         `;
-        closeBtn.addEventListener('click', () => {
-            document.body.removeChild(modal);
+
+        closeButton.addEventListener('mouseenter', () => {
+            closeButton.style.background = '#555';
         });
-        
-        // Assemble modal
-        modalContent.appendChild(header);
-        modalContent.appendChild(buttonsContainer);
-        modalContent.appendChild(closeBtn);
+
+        closeButton.addEventListener('mouseleave', () => {
+            closeButton.style.background = '#666';
+        });
+
+        closeButton.addEventListener('click', () => {
+            modal.remove();
+        });
+
+        modalContent.appendChild(closeButton);
         modal.appendChild(modalContent);
-        
-        // Add to page
         document.body.appendChild(modal);
-        
-        // Close on background click
+
+        // Auto-close modal when clicking outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
-                document.body.removeChild(modal);
+                modal.remove();
             }
         });
+
+        console.log('TikTok Full Extension: Download options modal displayed');
     }
 
     function createDownloadButton(text, url, style) {
