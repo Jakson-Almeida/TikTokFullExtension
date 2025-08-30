@@ -870,10 +870,11 @@
             // Try multiple TikTok download APIs as fallbacks
             const apis = [
                 {
-                    name: 'TikTok Downloader API',
-                    url: 'https://api.tiktokv.com/aweme/v1/play/',
+                    name: 'Simple TikTok Downloader',
+                    url: 'https://tiktok-download-without-watermark.p.rapidapi.com/',
                     method: 'GET',
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    params: { url: postUrl }
                 },
                 {
                     name: 'TikWM API',
@@ -1017,25 +1018,42 @@
         let watermarkUrl = null;
         let coverUrl = null;
 
+        console.log('TikTok Full Extension: Parsing API response:', apiData);
+
+        // Handle different API response formats
         if (apiData.play) {
             videoUrl = apiData.play;
         } else if (apiData.data && apiData.data.play) {
             videoUrl = apiData.data.play;
         } else if (apiData.video && apiData.video.play_addr) {
             videoUrl = apiData.video.play_addr.url_list && apiData.video.play_addr.url_list[0];
+        } else if (apiData.video_url) {
+            videoUrl = apiData.video_url;
+        } else if (apiData.url) {
+            videoUrl = apiData.url;
+        } else if (apiData.download_url) {
+            videoUrl = apiData.download_url;
         }
 
         if (apiData.play_watermark) {
             watermarkUrl = apiData.play_watermark;
         } else if (apiData.data && apiData.data.play_watermark) {
             watermarkUrl = apiData.data.play_watermark;
+        } else if (apiData.watermark_url) {
+            watermarkUrl = apiData.watermark_url;
         }
 
         if (apiData.cover) {
             coverUrl = apiData.cover;
         } else if (apiData.data && apiData.data.cover) {
             coverUrl = apiData.data.cover;
+        } else if (apiData.cover_url) {
+            coverUrl = apiData.cover_url;
+        } else if (apiData.thumbnail) {
+            coverUrl = apiData.thumbnail;
         }
+
+        console.log('TikTok Full Extension: Extracted URLs - Video:', videoUrl, 'Watermark:', watermarkUrl, 'Cover:', coverUrl);
 
         // Add download buttons for available options
         if (videoUrl) {
