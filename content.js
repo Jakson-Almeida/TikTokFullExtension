@@ -325,6 +325,37 @@
         
         posts.forEach((post, index) => {
             try {
+                // Create copy link button
+                const copyLinkBtn = document.createElement('button');
+                copyLinkBtn.className = 'tiktok-copy-link-btn';
+                copyLinkBtn.innerHTML = '🔗';
+                copyLinkBtn.title = 'Copy Post Link';
+                copyLinkBtn.style.cssText = `
+                    position: absolute;
+                    top: 10px;
+                    right: 50px;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    background: rgba(0, 0, 0, 0.7);
+                    border: 2px solid white;
+                    color: white;
+                    font-size: 16px;
+                    cursor: pointer;
+                    z-index: 1000;
+                    transition: 0.3s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                `;
+                
+                // Add click event for copy link
+                copyLinkBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    copyPostLink(post);
+                });
+                
                 // Create download button
                 const downloadBtn = document.createElement('button');
                 downloadBtn.className = 'tiktok-download-btn';
@@ -349,7 +380,7 @@
                     justify-content: center;
                 `;
                 
-                // Add click event
+                // Add click event for download
                 downloadBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -361,9 +392,10 @@
                     post.style.position = 'relative';
                 }
                 
-                // Add button to post
+                // Add both buttons to post
+                post.appendChild(copyLinkBtn);
                 post.appendChild(downloadBtn);
-                console.log('TikTok Full Extension: Added download button to post', index + 1);
+                console.log('TikTok Full Extension: Added copy link and download buttons to post', index + 1);
                 
             } catch (error) {
                 console.error('TikTok Full Extension: Error adding download button to post', index + 1, error);
@@ -404,8 +436,39 @@
             // Use the first few potential posts
             const postsToUse = potentialPosts.slice(0, 5);
             postsToUse.forEach((post, index) => {
-                try {
-                                         const downloadBtn = document.createElement('button');
+                                 try {
+                     // Create copy link button
+                     const copyLinkBtn = document.createElement('button');
+                     copyLinkBtn.className = 'tiktok-copy-link-btn';
+                     copyLinkBtn.innerHTML = '🔗';
+                     copyLinkBtn.title = 'Copy Post Link';
+                     copyLinkBtn.style.cssText = `
+                         position: absolute;
+                         top: 10px;
+                         right: 50px;
+                         width: 36px;
+                         height: 36px;
+                         border-radius: 50%;
+                         background: rgba(0, 0, 0, 0.7);
+                         border: 2px solid white;
+                         color: white;
+                         font-size: 16px;
+                         cursor: pointer;
+                         z-index: 1000;
+                         transition: 0.3s;
+                         display: flex;
+                         align-items: center;
+                         justify-content: center;
+                     `;
+                     
+                     // Add click event for copy link
+                     copyLinkBtn.addEventListener('click', (e) => {
+                         e.preventDefault();
+                         e.stopPropagation();
+                         copyPostLink(post);
+                     });
+                     
+                     const downloadBtn = document.createElement('button');
                      downloadBtn.className = 'tiktok-download-btn';
                      downloadBtn.innerHTML = '⬇️';
                      downloadBtn.title = 'Download Video';
@@ -427,19 +490,21 @@
                          align-items: center;
                          justify-content: center;
                      `;
-                    
-                    downloadBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        downloadVideo(post);
-                    });
-                    
-                    if (getComputedStyle(post).position === 'static') {
-                        post.style.position = 'relative';
-                    }
-                    
-                    post.appendChild(downloadBtn);
-                    console.log('TikTok Full Extension: Alternative method added button to post', index + 1);
+                     
+                     downloadBtn.addEventListener('click', (e) => {
+                         e.preventDefault();
+                         e.stopPropagation();
+                         downloadVideo(post);
+                     });
+                     
+                     if (getComputedStyle(post).position === 'static') {
+                         post.style.position = 'relative';
+                     }
+                     
+                     // Add both buttons to post
+                     post.appendChild(copyLinkBtn);
+                     post.appendChild(downloadBtn);
+                     console.log('TikTok Full Extension: Alternative method added copy link and download buttons to post', index + 1);
                     
                 } catch (error) {
                     console.error('TikTok Full Extension: Error with alternative injection for post', index + 1, error);
@@ -449,9 +514,113 @@
     }
 
     function removeDownloadButtons() {
-        const existingButtons = document.querySelectorAll('.tiktok-download-btn');
-        existingButtons.forEach(btn => btn.remove());
-        console.log('TikTok Full Extension: Removed', existingButtons.length, 'existing download buttons');
+        const existingDownloadButtons = document.querySelectorAll('.tiktok-download-btn');
+        const existingCopyLinkButtons = document.querySelectorAll('.tiktok-copy-link-btn');
+        existingDownloadButtons.forEach(btn => btn.remove());
+        existingCopyLinkButtons.forEach(btn => btn.remove());
+        console.log('TikTok Full Extension: Removed', existingDownloadButtons.length, 'existing download buttons and', existingCopyLinkButtons.length, 'copy link buttons');
+    }
+
+    function copyPostLink(postElement) {
+        console.log('TikTok Full Extension: Copy post link requested for post:', postElement);
+        
+        try {
+            // Look for TikTok video page link
+            const videoLink = postElement.querySelector('a[href*="/video/"]');
+            if (videoLink && videoLink.href) {
+                const postUrl = videoLink.href;
+                console.log('TikTok Full Extension: Found post URL:', postUrl);
+                
+                // Copy to clipboard
+                navigator.clipboard.writeText(postUrl).then(() => {
+                    console.log('TikTok Full Extension: Post link copied to clipboard:', postUrl);
+                    
+                    // Show visual feedback
+                    showCopyFeedback(postElement);
+                }).catch(err => {
+                    console.error('TikTok Full Extension: Failed to copy to clipboard:', err);
+                    // Fallback: try to copy using document.execCommand
+                    fallbackCopyToClipboard(postUrl);
+                });
+            } else {
+                console.log('TikTok Full Extension: No video link found in post');
+                // Fallback: copy current page URL
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    console.log('TikTok Full Extension: Current page URL copied to clipboard');
+                    showCopyFeedback(postElement);
+                }).catch(err => {
+                    console.error('TikTok Full Extension: Failed to copy current page URL:', err);
+                });
+            }
+        } catch (error) {
+            console.error('TikTok Full Extension: Error copying post link:', error);
+        }
+    }
+
+    function fallbackCopyToClipboard(text) {
+        try {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            if (successful) {
+                console.log('TikTok Full Extension: Post link copied using fallback method');
+            } else {
+                console.error('TikTok Full Extension: Fallback copy method failed');
+            }
+        } catch (err) {
+            console.error('TikTok Full Extension: Error with fallback copy method:', err);
+        }
+    }
+
+    function showCopyFeedback(postElement) {
+        // Create a temporary feedback element
+        const feedback = document.createElement('div');
+        feedback.innerHTML = '✅ Copied!';
+        feedback.style.cssText = `
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            background: rgba(0, 128, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1001;
+            animation: fadeInOut 2s ease-in-out;
+        `;
+        
+        // Add CSS animation
+        if (!document.querySelector('#tiktok-extension-styles')) {
+            const style = document.createElement('style');
+            style.id = 'tiktok-extension-styles';
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translateY(-10px); }
+                    20% { opacity: 1; transform: translateY(0); }
+                    80% { opacity: 1; transform: translateY(0); }
+                    100% { opacity: 0; transform: translateY(-10px); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        postElement.appendChild(feedback);
+        
+        // Remove feedback after animation
+        setTimeout(() => {
+            if (feedback.parentNode) {
+                feedback.parentNode.removeChild(feedback);
+            }
+        }, 2000);
     }
 
     function downloadVideo(postElement) {
