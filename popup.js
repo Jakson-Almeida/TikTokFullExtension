@@ -15,8 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Download tool elements
     const enableDownloadBtn = document.getElementById('enableDownloadBtn');
     const downloadSettingsBtn = document.getElementById('downloadSettingsBtn');
-    const watermarkOption = document.getElementById('watermarkOption');
-    const audioOption = document.getElementById('audioOption');
+
     const autoStartToggle = document.getElementById('autoStartToggle');
     const autoStartStatus = document.getElementById('autoStartStatus');
     
@@ -283,8 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Send message to content script to enable download mode
             console.log('15. Sending enableDownloadMode message...');
             const downloadOptions = {
-                watermark: watermarkOption.checked,
-                audio: audioOption.checked,
+
                 quality: downloadQuality.value
             };
             console.log('15a. Download options:', downloadOptions);
@@ -398,9 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const settings = {
             autoCheckAuth: autoCheckAuth.checked,
             showDownloadBtns: showDownloadBtns.checked,
-            downloadQuality: downloadQuality.value,
-            watermarkOption: watermarkOption.checked,
-            audioOption: audioOption.checked
+            downloadQuality: downloadQuality.value
         };
 
         try {
@@ -418,8 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
             autoCheckAuth.checked = true;
             showDownloadBtns.checked = true;
             downloadQuality.value = 'medium';
-            watermarkOption.checked = true;
-            audioOption.checked = true;
+
             
             // Save default settings
             await saveSettings();
@@ -434,8 +429,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 autoCheckAuth.checked = settings.autoCheckAuth !== undefined ? settings.autoCheckAuth : true;
                 showDownloadBtns.checked = settings.showDownloadBtns !== undefined ? settings.showDownloadBtns : true;
                 downloadQuality.value = settings.downloadQuality || 'medium';
-                watermarkOption.checked = settings.watermarkOption !== undefined ? settings.watermarkOption : true;
-                audioOption.checked = settings.audioOption !== undefined ? settings.audioOption : true;
+
             }
         } catch (error) {
             console.error('Error loading settings:', error);
