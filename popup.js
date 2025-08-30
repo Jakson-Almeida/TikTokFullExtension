@@ -47,6 +47,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // Settings events
     saveSettingsBtn.addEventListener('click', saveSettings);
     resetSettingsBtn.addEventListener('click', resetSettings);
+    
+    // Download method change listener
+    downloadMethod.addEventListener('change', async function() {
+        console.log('Download method changed to:', downloadMethod.value);
+        
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            if (tab.url && tab.url.includes('tiktok.com')) {
+                // Update the content script immediately
+                const response = await chrome.tabs.sendMessage(tab.id, {
+                    action: 'updateDownloadMethod',
+                    method: downloadMethod.value
+                });
+                
+                if (response && response.success) {
+                    console.log('Download method updated successfully:', downloadMethod.value);
+                }
+            }
+        } catch (error) {
+            console.error('Error updating download method:', error);
+        }
+    });
 
     function initializePopup() {
         // Set initial state
@@ -303,9 +326,11 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('14. Sending enableDownloadMode message...');
             const downloadOptions = {
                 quality: downloadQuality.value,
-                method: downloadMethod.value
+                method: downloadMethod.value || 'browser' // Ensure method is always set
             };
             console.log('14a. Download options:', downloadOptions);
+            console.log('14b. Download method value:', downloadMethod.value);
+            console.log('14c. Sending message with options:', downloadOptions);
             
             const response = await chrome.tabs.sendMessage(tab.id, {
                 action: 'enableDownloadMode',

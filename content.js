@@ -26,8 +26,7 @@
         enabled: false,
         autoStart: true, // Auto-start when authenticated
         options: {
-            watermark: true,
-            audio: true,
+            method: 'browser', // Default to browser method
             quality: 'medium'
         }
     };
@@ -85,22 +84,37 @@
                     
                 case 'enableDownloadMode':
                     console.log('TikTok Full Extension: Enabling download mode');
+                    console.log('TikTok Full Extension: Request options received:', request.options);
+                    
                     downloadMode.enabled = true;
                     
                     // Update download mode options if provided
                     if (request.options) {
+                        // Ensure options object exists
+                        if (!downloadMode.options) {
+                            downloadMode.options = {};
+                        }
+                        
                         downloadMode.options = {
                             ...downloadMode.options,
                             ...request.options
                         };
                         console.log('TikTok Full Extension: Updated download options:', downloadMode.options);
+                        console.log('TikTok Full Extension: Method set to:', downloadMode.options.method);
+                    } else {
+                        console.log('TikTok Full Extension: No options provided, using defaults');
+                        // Set default method if none provided
+                        if (!downloadMode.options) {
+                            downloadMode.options = { method: 'browser' };
+                        }
                     }
                     
                     saveSettings();
                     injectDownloadButtons();
                     sendResponse({
                         success: true,
-                        message: 'Download mode enabled successfully'
+                        message: 'Download mode enabled successfully',
+                        options: downloadMode.options
                     });
                     break;
                     
@@ -132,6 +146,23 @@
                     sendResponse({
                         success: true,
                         downloadMode: downloadMode
+                    });
+                    break;
+                    
+                case 'updateDownloadMethod':
+                    console.log('TikTok Full Extension: Updating download method to:', request.method);
+                    if (request.method) {
+                        if (!downloadMode.options) {
+                            downloadMode.options = {};
+                        }
+                        downloadMode.options.method = request.method;
+                        saveSettings();
+                        console.log('TikTok Full Extension: Download method updated to:', downloadMode.options.method);
+                    }
+                    sendResponse({
+                        success: true,
+                        message: 'Download method updated successfully',
+                        method: downloadMode.options.method
                     });
                     break;
                     
@@ -635,6 +666,11 @@
 
     function downloadVideo(postElement) {
         console.log('TikTok Full Extension: Download video requested for post:', postElement);
+        
+        // Debug: Log the current download mode settings
+        console.log('TikTok Full Extension: Current download mode:', downloadMode);
+        console.log('TikTok Full Extension: Download options:', downloadMode.options);
+        console.log('TikTok Full Extension: Method setting:', downloadMode.options?.method);
         
         // Check if we should use API method
         if (downloadMode.options && downloadMode.options.method === 'api') {
@@ -1227,7 +1263,15 @@
         authData,
         downloadMode,
         injectDownloadButtons,
-        removeDownloadButtons
+        removeDownloadButtons,
+        testDownloadMethod: () => {
+            console.log('=== DOWNLOAD METHOD TEST ===');
+            console.log('Current download mode:', downloadMode);
+            console.log('Options:', downloadMode.options);
+            console.log('Method:', downloadMode.options?.method);
+            console.log('Enabled:', downloadMode.enabled);
+            console.log('==========================');
+        }
     };
 
     console.log('TikTok Full Extension: Content script fully initialized and ready');
