@@ -603,9 +603,13 @@
     function removeDownloadButtons() {
         const existingDownloadButtons = document.querySelectorAll('.tiktok-download-btn');
         const existingCopyLinkButtons = document.querySelectorAll('.tiktok-copy-link-btn');
+        const existingAPIDownloadContainers = document.querySelectorAll('.tiktok-api-download-container');
+        
         existingDownloadButtons.forEach(btn => btn.remove());
         existingCopyLinkButtons.forEach(btn => btn.remove());
-        console.log('TikTok Full Extension: Removed', existingDownloadButtons.length, 'existing download buttons and', existingCopyLinkButtons.length, 'copy link buttons');
+        existingAPIDownloadContainers.forEach(container => container.remove());
+        
+        console.log('TikTok Full Extension: Removed', existingDownloadButtons.length, 'existing download buttons,', existingCopyLinkButtons.length, 'copy link buttons, and', existingAPIDownloadContainers.length, 'API download containers');
     }
 
     function copyPostLink(postElement) {
@@ -980,8 +984,8 @@
             }
 
             if (apiResponse && workingApi) {
-                console.log('TikTok Full Extension: API download successful, showing options');
-                showDownloadOptionsModal(postElement, apiResponse, postUrl, workingApi);
+                console.log('TikTok Full Extension: API download successful, injecting download buttons directly');
+                injectAPIDownloadButtons(postElement, apiResponse, postUrl, workingApi);
             } else {
                 console.log('TikTok Full Extension: All APIs failed, falling back to browser method');
                 showDownloadFeedback(postElement, '❌ API failed, using browser method', 'error');
@@ -1532,6 +1536,217 @@
             console.error('TikTok Full Extension: Error constructing TikTok video URL:', error);
             return null;
         }
+    }
+
+    // Function to download cover image
+    function downloadCoverImage(postElement) {
+        console.log('TikTok Full Extension: Download cover image requested for post:', postElement);
+        
+        try {
+            // Look for cover image in the post
+            const coverImage = postElement.querySelector('img[src*="tiktok"], img[src*="tiktokcdn"], img[src*="sf16-akcdn"]');
+            
+            if (coverImage && coverImage.src) {
+                const imageUrl = coverImage.src;
+                console.log('TikTok Full Extension: Found cover image:', imageUrl);
+                
+                // Open the image in a new tab for download
+                window.open(imageUrl, '_blank');
+            } else {
+                // Try to find any image that might be a cover
+                const anyImage = postElement.querySelector('img');
+                if (anyImage && anyImage.src) {
+                    console.log('TikTok Full Extension: Using fallback image:', anyImage.src);
+                    window.open(anyImage.src, '_blank');
+                } else {
+                    console.log('TikTok Full Extension: No cover image found');
+                    // Show feedback
+                    showDownloadFeedback(postElement, '❌ No cover image found', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('TikTok Full Extension: Error downloading cover image:', error);
+            showDownloadFeedback(postElement, '❌ Error downloading cover', 'error');
+        }
+    }
+
+    // Function to inject API download buttons directly on the post
+    function injectAPIDownloadButtons(postElement, apiData, originalUrl, apiName) {
+        console.log('TikTok Full Extension: Injecting API download buttons directly on post');
+        
+        // Remove existing API download buttons if any
+        const existingAPIBtns = postElement.querySelectorAll('.tiktok-api-download-btn');
+        existingAPIBtns.forEach(btn => btn.remove());
+        
+        // Extract video URLs from API response
+        let videoUrl = null;
+        let watermarkUrl = null;
+        let coverUrl = null;
+
+        // Handle different API response formats
+        if (apiData.play) {
+            videoUrl = apiData.play;
+        } else if (apiData.data && apiData.data.play) {
+            videoUrl = apiData.data.play;
+        } else if (apiData.video && apiData.video.play_addr) {
+            videoUrl = apiData.video.play_addr.url_list && apiData.video.play_addr.url_list[0];
+        } else if (apiData.video_url) {
+            videoUrl = apiData.video_url;
+        } else if (apiData.url) {
+            videoUrl = apiData.url;
+        } else if (apiData.download_url) {
+            videoUrl = apiData.download_url;
+        }
+
+        if (apiData.play_watermark) {
+            watermarkUrl = apiData.play_watermark;
+        } else if (apiData.data && apiData.data.play_watermark) {
+            watermarkUrl = apiData.data.play_watermark;
+        } else if (apiData.watermark_url) {
+            watermarkUrl = apiData.watermark_url;
+        }
+
+        if (apiData.cover) {
+            coverUrl = apiData.cover;
+        } else if (apiData.data && apiData.data.cover) {
+            coverUrl = apiData.data.cover;
+        } else if (apiData.cover_url) {
+            coverUrl = apiData.cover_url;
+        } else if (apiData.thumbnail) {
+            coverUrl = apiData.thumbnail;
+        }
+
+        console.log('TikTok Full Extension: Extracted URLs - Video:', videoUrl, 'Watermark:', watermarkUrl, 'Cover:', coverUrl);
+
+        // Create download buttons container
+        const downloadContainer = document.createElement('div');
+        downloadContainer.className = 'tiktok-api-download-container';
+        downloadContainer.style.cssText = `
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1002;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid white;
+        `;
+
+        // Add title
+        const title = document.createElement('div');
+        title.textContent = `📥 ${apiName}`;
+        title.style.cssText = `
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 4px;
+        `;
+        downloadContainer.appendChild(title);
+
+        // Create download buttons for available options
+        if (videoUrl) {
+            const downloadBtn = createInlineDownloadButton('🎬 Download Video', videoUrl, 'primary');
+            downloadContainer.appendChild(downloadBtn);
+        }
+
+        if (watermarkUrl) {
+            const watermarkBtn = createInlineDownloadButton('💧 Download with Watermark', watermarkUrl, 'secondary');
+            downloadContainer.appendChild(watermarkBtn);
+        }
+
+        if (coverUrl) {
+            const coverBtn = createInlineDownloadButton('🖼️ Download Cover', coverUrl, 'tertiary');
+            downloadContainer.appendChild(coverBtn);
+        }
+
+        // If no specific URLs found, create a generic button
+        if (!videoUrl && !watermarkUrl && !coverUrl) {
+            if (apiData.url) {
+                const genericBtn = createInlineDownloadButton('🔗 Open Download Link', apiData.url, 'primary');
+                downloadContainer.appendChild(genericBtn);
+            }
+        }
+
+        // Add close button
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '✕';
+        closeBtn.title = 'Close download options';
+        closeBtn.style.cssText = `
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #dc3545;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        closeBtn.addEventListener('click', () => {
+            downloadContainer.remove();
+        });
+        downloadContainer.appendChild(closeBtn);
+
+        // Add the container to the post
+        postElement.appendChild(downloadContainer);
+
+        // Auto-remove after 30 seconds
+        setTimeout(() => {
+            if (downloadContainer.parentNode) {
+                downloadContainer.remove();
+            }
+        }, 30000);
+
+        console.log('TikTok Full Extension: API download buttons injected successfully');
+    }
+
+    // Helper function to create inline download buttons
+    function createInlineDownloadButton(text, url, style) {
+        const button = document.createElement('button');
+        button.textContent = text;
+        button.style.cssText = `
+            background: ${style === 'primary' ? '#007bff' : style === 'secondary' ? '#6c757d' : '#28a745'};
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            min-width: 120px;
+        `;
+        
+        button.addEventListener('mouseenter', () => {
+            button.style.transform = 'translateY(-1px)';
+            button.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+        });
+        
+        button.addEventListener('mouseleave', () => {
+            button.style.transform = 'translateY(0)';
+            button.style.boxShadow = 'none';
+        });
+        
+        button.addEventListener('click', () => {
+            console.log('TikTok Full Extension: Downloading from API URL:', url);
+            // Open download link in new tab
+            window.open(url, '_blank');
+        });
+        
+        return button;
     }
 
     // Expose functions for debugging
