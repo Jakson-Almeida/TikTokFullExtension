@@ -48,6 +48,10 @@ document.addEventListener('DOMContentLoaded', function() {
     saveSettingsBtn.addEventListener('click', saveSettings);
     resetSettingsBtn.addEventListener('click', resetSettings);
     
+    // Debug button event
+    const debugSettingsBtn = document.getElementById('debugSettingsBtn');
+    debugSettingsBtn.addEventListener('click', testCurrentSettings);
+    
     // Download method change listener
     downloadMethod.addEventListener('change', async function() {
         console.log('Download method changed to:', downloadMethod.value);
@@ -71,20 +75,89 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Debug function to test current settings
+    async function testCurrentSettings() {
+        console.log('=== TEST CURRENT SETTINGS DEBUG START ===');
+        
+        try {
+            // Test popup settings
+            console.log('1. POPUP SETTINGS:');
+            console.log('   - autoCheckAuth.checked:', autoCheckAuth.checked);
+            console.log('   - showDownloadBtns.checked:', showDownloadBtns.checked);
+            console.log('   - downloadQuality.value:', downloadQuality.value);
+            console.log('   - downloadMethod.value:', downloadMethod.value);
+            
+            // Test chrome.storage.local settings
+            console.log('2. CHROME STORAGE SETTINGS:');
+            const result = await chrome.storage.local.get(['settings', 'downloadMode']);
+            console.log('   - Raw storage result:', result);
+            
+            if (result.settings) {
+                console.log('   - settings object:', result.settings);
+            } else {
+                console.log('   - No settings found in storage');
+            }
+            
+            if (result.downloadMode) {
+                console.log('   - downloadMode object:', result.downloadMode);
+            } else {
+                console.log('   - No downloadMode found in storage');
+            }
+            
+            // Test content script communication
+            console.log('3. CONTENT SCRIPT COMMUNICATION TEST:');
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            if (tab.url && tab.url.includes('tiktok.com')) {
+                try {
+                    const response = await chrome.tabs.sendMessage(tab.id, {
+                        action: 'getDownloadModeStatus'
+                    });
+                    
+                    if (response && response.success) {
+                        console.log('   - Content script response:', response);
+                        console.log('   - Current download method in content script:', response.downloadMode?.options?.method);
+                    } else {
+                        console.log('   - Content script responded but with error:', response);
+                    }
+                } catch (error) {
+                    console.log('   - Cannot communicate with content script:', error.message);
+                }
+            } else {
+                console.log('   - Not on TikTok page, cannot test content script');
+            }
+            
+            console.log('=== TEST CURRENT SETTINGS DEBUG END ===');
+        } catch (error) {
+            console.error('=== TEST CURRENT SETTINGS ERROR ===');
+            console.error('Error testing settings:', error);
+            console.error('=== TEST CURRENT SETTINGS ERROR END ===');
+        }
+    }
+
     function initializePopup() {
+        console.log('=== INITIALIZE POPUP DEBUG START ===');
+        
         // Set initial state
+        console.log('1. Setting initial status...');
         setStatus('checking', 'Checking...');
         
         // Check authentication status when popup opens
+        console.log('2. Checking authentication status...');
         checkAuthenticationStatus();
         
         // Load saved settings
+        console.log('3. Loading saved settings...');
         loadSettings();
         
         // Load download mode status after a short delay
+        console.log('4. Setting up delayed download mode status load...');
         setTimeout(() => {
+            console.log('5. Loading download mode status (delayed)...');
             loadDownloadModeStatus();
         }, 1000);
+        
+        console.log('=== INITIALIZE POPUP DEBUG END ===');
     }
 
     function switchTab(tabName) {
@@ -483,19 +556,45 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function saveSettings() {
+        console.log('=== SAVE SETTINGS DEBUG START ===');
+        
         const settings = {
             autoCheckAuth: autoCheckAuth.checked,
             showDownloadBtns: showDownloadBtns.checked,
             downloadQuality: downloadQuality.value,
             downloadMethod: downloadMethod.value
         };
+        
+        console.log('1. Settings object to save:', settings);
+        console.log('2. Current form values:');
+        console.log('   - autoCheckAuth.checked:', autoCheckAuth.checked);
+        console.log('   - showDownloadBtns.checked:', showDownloadBtns.checked);
+        console.log('   - downloadQuality.value:', downloadQuality.value);
+        console.log('   - downloadMethod.value:', downloadMethod.value);
 
         try {
+            console.log('3. Saving to chrome.storage.local...');
             await chrome.storage.local.set({ settings });
-            console.log('Settings saved successfully!');
+            console.log('4. Settings saved successfully!');
+            console.log('5. Verifying saved settings...');
+            
+            // Verify the save
+            const result = await chrome.storage.local.get(['settings']);
+            console.log('6. Verification result:', result);
+            
+            if (result.settings && JSON.stringify(result.settings) === JSON.stringify(settings)) {
+                console.log('7. Settings verification successful!');
+            } else {
+                console.warn('7. Settings verification failed - saved vs expected:');
+                console.warn('   Saved:', result.settings);
+                console.warn('   Expected:', settings);
+            }
+            
+            console.log('=== SAVE SETTINGS DEBUG END ===');
         } catch (error) {
+            console.error('=== SAVE SETTINGS ERROR ===');
             console.error('Error saving settings:', error);
-            console.log('Error saving settings. Please try again.');
+            console.error('=== SAVE SETTINGS ERROR END ===');
         }
     }
 
@@ -514,18 +613,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function loadSettings() {
+        console.log('=== LOAD SETTINGS DEBUG START ===');
         try {
+            console.log('1. Loading settings from chrome.storage.local...');
             const result = await chrome.storage.local.get(['settings']);
+            console.log('2. Raw storage result:', result);
+            
             if (result.settings) {
                 const settings = result.settings;
+                console.log('3. Found settings:', settings);
+                console.log('4. Setting form values...');
+                
                 autoCheckAuth.checked = settings.autoCheckAuth !== undefined ? settings.autoCheckAuth : true;
                 showDownloadBtns.checked = settings.showDownloadBtns !== undefined ? settings.showDownloadBtns : true;
                 downloadQuality.value = settings.downloadQuality || 'medium';
                 downloadMethod.value = settings.downloadMethod || 'api';
-
+                
+                console.log('5. Form values set:');
+                console.log('   - autoCheckAuth:', autoCheckAuth.checked);
+                console.log('   - showDownloadBtns:', showDownloadBtns.checked);
+                console.log('   - downloadQuality:', downloadQuality.value);
+                console.log('   - downloadMethod:', downloadMethod.value);
+            } else {
+                console.log('3. No settings found, using defaults');
+                console.log('4. Default values:');
+                console.log('   - autoCheckAuth: true');
+                console.log('   - showDownloadBtns: true');
+                console.log('   - downloadQuality: medium');
+                console.log('   - downloadMethod: api');
             }
+            
+            console.log('=== LOAD SETTINGS DEBUG END ===');
         } catch (error) {
+            console.error('=== LOAD SETTINGS ERROR ===');
             console.error('Error loading settings:', error);
+            console.error('=== LOAD SETTINGS ERROR END ===');
         }
     }
 

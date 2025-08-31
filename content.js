@@ -35,30 +35,48 @@
     initialize();
 
     function initialize() {
-        console.log('TikTok Full Extension: Initializing...');
+        console.log('=== CONTENT SCRIPT INITIALIZE DEBUG START ===');
+        console.log('1. TikTok Full Extension: Initializing...');
         
         // Listen for messages from popup
+        console.log('2. Setting up message listener...');
         chrome.runtime.onMessage.addListener(handleMessage);
-        console.log('TikTok Full Extension: Message listener set up');
+        console.log('3. Message listener set up');
         
         // Load saved settings
+        console.log('4. Loading saved settings...');
         loadSettings().then(() => {
+            console.log('5. Settings loaded, proceeding with initialization...');
+            
             // Initial authentication check
+            console.log('6. Performing initial authentication check...');
             checkAuthentication();
             
             // Set up periodic checks
+            console.log('7. Setting up periodic authentication checks...');
             setInterval(checkAuthentication, 10000);
             
             // Check if we should auto-start download mode
+            console.log('8. Checking auto-start conditions...');
+            console.log('   - autoStart:', downloadMode.autoStart);
+            console.log('   - authenticated:', authData.authenticated);
+            console.log('   - downloadMode.enabled:', downloadMode.enabled);
+            
             if (downloadMode.autoStart && authData.authenticated && !downloadMode.enabled) {
-                console.log('TikTok Full Extension: Auto-start enabled, user authenticated, enabling download mode');
+                console.log('9. Auto-start conditions met, enabling download mode');
                 downloadMode.enabled = true;
                 saveSettings();
                 injectDownloadButtons();
+            } else {
+                console.log('9. Auto-start conditions not met:');
+                console.log('   - autoStart:', downloadMode.autoStart);
+                console.log('   - authenticated:', authData.authenticated);
+                console.log('   - downloadMode.enabled:', downloadMode.enabled);
             }
         });
         
-        console.log('TikTok Full Extension: Initialization complete');
+        console.log('10. Initialization complete');
+        console.log('=== CONTENT SCRIPT INITIALIZE DEBUG END ===');
     }
 
     function handleMessage(request, sender, sendResponse) {
@@ -1211,35 +1229,69 @@
     }
 
     async function loadSettings() {
+        console.log('=== CONTENT SCRIPT LOAD SETTINGS DEBUG START ===');
         try {
+            console.log('1. Loading downloadMode from chrome.storage.local...');
             const result = await chrome.storage.local.get(['downloadMode']);
+            console.log('2. Raw storage result:', result);
+            
             if (result.downloadMode) {
+                console.log('3. Found downloadMode settings:', result.downloadMode);
                 downloadMode = { ...downloadMode, ...result.downloadMode };
-                console.log('TikTok Full Extension: Loaded settings:', downloadMode);
+                console.log('4. Merged with defaults, result:', downloadMode);
                 
                 // If download mode was previously enabled, restore it
                 if (downloadMode.enabled) {
+                    console.log('5. Download mode was enabled, will restore after 2s delay');
                     setTimeout(injectDownloadButtons, 2000); // Wait for page to load
+                } else {
+                    console.log('5. Download mode was not enabled, skipping restoration');
                 }
+            } else {
+                console.log('3. No downloadMode settings found, using defaults');
             }
             
             // Set default values for new installations
             if (downloadMode.autoStart === undefined) {
+                console.log('6. Setting default autoStart to true');
                 downloadMode.autoStart = true;
             }
             
-            console.log('TikTok Full Extension: Final download mode settings:', downloadMode);
+            console.log('7. Final download mode settings:', downloadMode);
+            console.log('8. Download method setting:', downloadMode.options?.method);
+            console.log('=== CONTENT SCRIPT LOAD SETTINGS DEBUG END ===');
         } catch (error) {
+            console.error('=== CONTENT SCRIPT LOAD SETTINGS ERROR ===');
             console.error('Error loading settings:', error);
+            console.error('=== CONTENT SCRIPT LOAD SETTINGS ERROR END ===');
         }
     }
 
     async function saveSettings() {
+        console.log('=== CONTENT SCRIPT SAVE SETTINGS DEBUG START ===');
         try {
+            console.log('1. Saving downloadMode to chrome.storage.local:', downloadMode);
             await chrome.storage.local.set({ downloadMode });
-            console.log('TikTok Full Extension: Settings saved:', downloadMode);
+            console.log('2. Settings saved successfully');
+            
+            // Verify the save
+            console.log('3. Verifying saved settings...');
+            const result = await chrome.storage.local.get(['downloadMode']);
+            console.log('4. Verification result:', result);
+            
+            if (result.downloadMode && JSON.stringify(result.downloadMode) === JSON.stringify(downloadMode)) {
+                console.log('5. Settings verification successful!');
+            } else {
+                console.warn('5. Settings verification failed - saved vs expected:');
+                console.warn('   Saved:', result.downloadMode);
+                console.warn('   Expected:', downloadMode);
+            }
+            
+            console.log('=== CONTENT SCRIPT SAVE SETTINGS DEBUG END ===');
         } catch (error) {
+            console.error('=== CONTENT SCRIPT SAVE SETTINGS ERROR ===');
             console.error('Error saving settings:', error);
+            console.error('=== CONTENT SCRIPT SAVE SETTINGS ERROR END ===');
         }
     }
 
