@@ -60,7 +60,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             
             if (tab.url && tab.url.includes('tiktok.com')) {
-                // Update the content script immediately
+                // First sync all settings to ensure consistency
+                console.log('Syncing all settings to content script...');
+                const syncResponse = await chrome.tabs.sendMessage(tab.id, {
+                    action: 'syncSettings'
+                });
+                
+                if (syncResponse && syncResponse.success) {
+                    console.log('Settings synced successfully:', syncResponse.options);
+                }
+                
+                // Also update the download method specifically
                 const response = await chrome.tabs.sendMessage(tab.id, {
                     action: 'updateDownloadMethod',
                     method: downloadMethod.value
@@ -156,6 +166,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('5. Loading download mode status (delayed)...');
             loadDownloadModeStatus();
         }, 1000);
+        
+        // Force sync settings with content script after a delay
+        setTimeout(() => {
+            console.log('6. Force syncing settings with content script...');
+            forceSyncSettings();
+        }, 1500);
         
         console.log('=== INITIALIZE POPUP DEBUG END ===');
     }
@@ -590,6 +606,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.warn('   Expected:', settings);
             }
             
+            // Sync settings to content script if on TikTok page
+            console.log('8. Syncing settings to content script...');
+            try {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (tab.url && tab.url.includes('tiktok.com')) {
+                    const syncResponse = await chrome.tabs.sendMessage(tab.id, {
+                        action: 'syncSettings'
+                    });
+                    if (syncResponse && syncResponse.success) {
+                        console.log('9. Settings synced to content script successfully');
+                    } else {
+                        console.warn('9. Failed to sync settings to content script');
+                    }
+                } else {
+                    console.log('9. Not on TikTok page, skipping content script sync');
+                }
+            } catch (syncError) {
+                console.warn('9. Error syncing to content script:', syncError.message);
+            }
+            
             console.log('=== SAVE SETTINGS DEBUG END ===');
         } catch (error) {
             console.error('=== SAVE SETTINGS ERROR ===');
@@ -648,6 +684,26 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('=== LOAD SETTINGS ERROR ===');
             console.error('Error loading settings:', error);
             console.error('=== LOAD SETTINGS ERROR END ===');
+        }
+    }
+
+    // Force sync settings with content script
+    async function forceSyncSettings() {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab.url && tab.url.includes('tiktok.com')) {
+                console.log('Force syncing settings with content script...');
+                const response = await chrome.tabs.sendMessage(tab.id, {
+                    action: 'syncSettings'
+                });
+                if (response && response.success) {
+                    console.log('Force sync successful:', response.options);
+                } else {
+                    console.warn('Force sync failed:', response);
+                }
+            }
+        } catch (error) {
+            console.warn('Error during force sync:', error.message);
         }
     }
 

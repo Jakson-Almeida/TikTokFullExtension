@@ -26,7 +26,7 @@
         enabled: false,
         autoStart: true, // Auto-start when authenticated
         options: {
-            method: 'browser', // Default to browser method
+            method: 'api', // Default to API method to match popup
             quality: 'medium'
         }
     };
@@ -183,6 +183,34 @@
                         method: downloadMode.options.method
                     });
                     break;
+                    
+                case 'syncSettings':
+                    console.log('TikTok Full Extension: Syncing settings from popup...');
+                    // Use Promise-based approach instead of async/await
+                    chrome.storage.local.get(['settings']).then(result => {
+                        if (result.settings) {
+                            console.log('TikTok Full Extension: Found popup settings:', result.settings);
+                            if (!downloadMode.options) {
+                                downloadMode.options = {};
+                            }
+                            downloadMode.options.method = result.settings.downloadMethod || 'api';
+                            downloadMode.options.quality = result.settings.downloadQuality || 'medium';
+                            saveSettings();
+                            console.log('TikTok Full Extension: Settings synced successfully:', downloadMode.options);
+                        }
+                        sendResponse({
+                            success: true,
+                            message: 'Settings synced successfully',
+                            options: downloadMode.options
+                        });
+                    }).catch(error => {
+                        console.error('TikTok Full Extension: Error syncing settings:', error);
+                        sendResponse({
+                            success: false,
+                            error: 'Failed to sync settings: ' + error.message
+                        });
+                    });
+                    return true; // Keep message channel open for async response
                     
                 case 'ping':
                     sendResponse({
@@ -1231,34 +1259,57 @@
     async function loadSettings() {
         console.log('=== CONTENT SCRIPT LOAD SETTINGS DEBUG START ===');
         try {
-            console.log('1. Loading downloadMode from chrome.storage.local...');
-            const result = await chrome.storage.local.get(['downloadMode']);
+            console.log('1. Loading settings from chrome.storage.local...');
+            // Load BOTH popup settings and downloadMode to ensure sync
+            const result = await chrome.storage.local.get(['settings', 'downloadMode']);
             console.log('2. Raw storage result:', result);
             
+            // First, check if popup settings exist and sync them
+            if (result.settings && result.settings.downloadMethod) {
+                console.log('3. Found popup settings with downloadMethod:', result.settings.downloadMethod);
+                // Sync popup settings to downloadMode
+                if (!downloadMode.options) {
+                    downloadMode.options = {};
+                }
+                downloadMode.options.method = result.settings.downloadMethod;
+                downloadMode.options.quality = result.settings.downloadQuality || 'medium';
+                console.log('4. Synced popup settings to downloadMode:', downloadMode.options);
+            }
+            
+            // Then load any existing downloadMode settings (these take precedence)
             if (result.downloadMode) {
-                console.log('3. Found downloadMode settings:', result.downloadMode);
+                console.log('5. Found downloadMode settings:', result.downloadMode);
                 downloadMode = { ...downloadMode, ...result.downloadMode };
-                console.log('4. Merged with defaults, result:', downloadMode);
+                console.log('6. Merged with defaults, result:', downloadMode);
                 
                 // If download mode was previously enabled, restore it
                 if (downloadMode.enabled) {
-                    console.log('5. Download mode was enabled, will restore after 2s delay');
+                    console.log('7. Download mode was enabled, will restore after 2s delay');
                     setTimeout(injectDownloadButtons, 2000); // Wait for page to load
                 } else {
-                    console.log('5. Download mode was not enabled, skipping restoration');
+                    console.log('7. Download mode was not enabled, skipping restoration');
                 }
             } else {
-                console.log('3. No downloadMode settings found, using defaults');
+                console.log('5. No downloadMode settings found, using defaults');
             }
             
             // Set default values for new installations
             if (downloadMode.autoStart === undefined) {
-                console.log('6. Setting default autoStart to true');
+                console.log('8. Setting default autoStart to true');
                 downloadMode.autoStart = true;
             }
             
-            console.log('7. Final download mode settings:', downloadMode);
-            console.log('8. Download method setting:', downloadMode.options?.method);
+            // Ensure method is always set
+            if (!downloadMode.options || !downloadMode.options.method) {
+                console.log('9. Setting default download method to api');
+                if (!downloadMode.options) {
+                    downloadMode.options = {};
+                }
+                downloadMode.options.method = 'api';
+            }
+            
+            console.log('10. Final download mode settings:', downloadMode);
+            console.log('11. Download method setting:', downloadMode.options?.method);
             console.log('=== CONTENT SCRIPT LOAD SETTINGS DEBUG END ===');
         } catch (error) {
             console.error('=== CONTENT SCRIPT LOAD SETTINGS ERROR ===');
